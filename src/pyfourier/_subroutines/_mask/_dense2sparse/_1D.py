@@ -9,6 +9,7 @@ from ... import _utils
 # detect GPU
 gpu_available, gpu_backend = _utils.detect_gpu_backend()
 
+
 @nb.njit(fastmath=True, parallel=True)  # pragma: no cover
 def _mask_nb(sparse_data, dense_data, index):  # noqa
     # get sizes
@@ -29,14 +30,14 @@ def _mask_nb(sparse_data, dense_data, index):  # noqa
         # gather data within kernel radius
         idx = xindex[frame, point]
         sparse_data[frame, batch, point] += dense_data[frame, batch, idx]
-    
+
+
 _mask = {"cpu": _mask_nb}
-                    
+
 # %% GPU
 if gpu_available and gpu_backend == "numba":
-    
     from numba import cuda
-        
+
     @cuda.jit(fastmath=True)  # pragma: no cover
     def _mask_nbcuda(sparse_data, dense_data, index):
         # get sizes
@@ -58,13 +59,12 @@ if gpu_available and gpu_backend == "numba":
             # gather data within kernel radius
             idx = xindex[frame, point]
             sparse_data[frame, batch, point] += dense_data[frame, batch, idx]
-                
+
     _mask["gpu"] = _mask_nbcuda
-    
+
 if gpu_available and gpu_backend == "cupy":
-    
     from cupyx import jit
-        
+
     @jit.rawkernel()  # pragma: no cover
     def _mask_cupy(sparse_data, dense_data, index):
         # get sizes
@@ -86,5 +86,5 @@ if gpu_available and gpu_backend == "cupy":
             # gather data within kernel radius
             idx = xindex[frame, point]
             sparse_data[frame, batch, point] += dense_data[frame, batch, idx]
-            
+
     _mask["gpu"] = _mask_cupy

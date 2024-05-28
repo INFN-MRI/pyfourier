@@ -9,6 +9,7 @@ from ... import _utils
 # detect GPU
 gpu_available, gpu_backend = _utils.detect_gpu_backend()
 
+
 @nb.njit(fastmath=True, parallel=True)  # pragma: no cover
 def _grid_nb(cart_data, noncart_data, interp_value, interp_index):  # noqa
     # get sizes
@@ -45,19 +46,17 @@ def _grid_nb(cart_data, noncart_data, interp_value, interp_index):  # noqa
                     cart_data[frame, batch, idz, idy, idx] += (
                         val * noncart_data[frame, batch, point]
                     )
-    
 
-_grid = {"cpu": {False: _grid_nb, True:_grid_nb}}
-                    
+
+_grid = {"cpu": {False: _grid_nb, True: _grid_nb}}
+
 # %% GPU
 if gpu_available and gpu_backend == "numba":
-    
     from numba import cuda
-    
+
     def _get_grid_nbcuda(is_complex):
-        
         _update = _utils._update[is_complex]
-    
+
         @cuda.jit(fastmath=True)  # pragma: no cover
         def _grid_nbcuda(cart_data, noncart_data, interp_value, interp_index):
             # get sizes
@@ -97,19 +96,17 @@ if gpu_available and gpu_backend == "numba":
                             (frame, batch, idz, idy, idx),
                             val * noncart_data[frame, batch, point],
                         )
-                        
+
         return _grid_nbcuda
-  
+
     _grid["gpu"] = {False: _get_grid_nbcuda(False), True: _get_grid_nbcuda(True)}
-    
+
 if gpu_available and gpu_backend == "cupy":
-    
     from cupyx import jit
-    
+
     def _get_grid_cupy(is_complex):
-        
         _update = _utils._update[is_complex]
-    
+
         @jit.rawkernel()  # pragma: no cover
         def _grid_cupy(cart_data, noncart_data, interp_value, interp_index):
             # get sizes
@@ -149,7 +146,7 @@ if gpu_available and gpu_backend == "cupy":
                             (frame, batch, idz, idy, idx),
                             val * noncart_data[frame, batch, point],
                         )
-                        
+
         return _grid_cupy
-  
+
     _grid["gpu"] = {False: _get_grid_cupy(False), True: _get_grid_cupy(True)}

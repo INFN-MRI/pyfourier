@@ -9,6 +9,7 @@ from ... import _utils
 # detect GPU
 gpu_available, gpu_backend = _utils.detect_gpu_backend()
 
+
 @nb.njit(fastmath=True, parallel=True)  # pragma: no cover
 def _degrid_nb(noncart_data, cart_data, interp_value, interp_index):  # noqa
     # get sizes
@@ -48,15 +49,14 @@ def _degrid_nb(noncart_data, cart_data, interp_value, interp_index):  # noqa
                     noncart_data[frame, batch, point] += (
                         val * cart_data[frame, batch, idz, idy, idx]
                     )
-    
+
 
 _degrid = {"cpu": _degrid_nb}
-                    
+
 # %% GPU
 if gpu_available and gpu_backend == "numba":
-    
     from numba import cuda
-        
+
     @cuda.jit(fastmath=True)  # pragma: no cover
     def _degrid_nbcuda(noncart_data, cart_data, interp_value, interp_index):
         # get sizes
@@ -97,13 +97,12 @@ if gpu_available and gpu_backend == "numba":
                         noncart_data[frame, batch, point] += (
                             val * cart_data[frame, batch, idz, idy, idx]
                         )
-                
+
     _degrid["gpu"] = _degrid_nbcuda
-    
+
 if gpu_available and gpu_backend == "cupy":
-    
     from cupyx import jit
-        
+
     @jit.rawkernel()  # pragma: no cover
     def _degrid_cupy(noncart_data, cart_data, interp_value, interp_index):
         # get sizes
@@ -144,5 +143,5 @@ if gpu_available and gpu_backend == "cupy":
                         noncart_data[frame, batch, point] += (
                             val * cart_data[frame, batch, idz, idy, idx]
                         )
-            
+
     _degrid["gpu"] = _degrid_cupy

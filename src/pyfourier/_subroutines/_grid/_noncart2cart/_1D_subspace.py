@@ -9,9 +9,9 @@ from ... import _utils
 # detect GPU
 gpu_available, gpu_backend = _utils.detect_gpu_backend()
 
+
 @nb.njit(fastmath=True, parallel=True)  # pragma: no cover
-def _grid_nb(cart_data, noncart_data, interp_value, interp_index, basis
-):  # noqa
+def _grid_nb(cart_data, noncart_data, interp_value, interp_index, basis):  # noqa
     # get sizes
     ncoeff, batch_size, _ = cart_data.shape
     nframes = noncart_data.shape[0]
@@ -44,22 +44,19 @@ def _grid_nb(cart_data, noncart_data, interp_value, interp_index, basis
                     cart_data[coeff, batch, idx] += (
                         val * basis[coeff, frame] * noncart_data[frame, batch, point]
                     )
-                    
-_grid = {"cpu": {False: _grid_nb, True:_grid_nb}}
+
+
+_grid = {"cpu": {False: _grid_nb, True: _grid_nb}}
 
 # %% GPU
 if gpu_available and gpu_backend == "numba":
-    
     from numba import cuda
-    
+
     def _get_grid_nbcuda(is_complex):
-        
         _update = _utils._update[is_complex]
-    
+
         @cuda.jit(fastmath=True)  # pragma: no cover
-        def _grid_nbcuda(
-                cart_data, noncart_data, interp_value, interp_index, basis
-        ):
+        def _grid_nbcuda(cart_data, noncart_data, interp_value, interp_index, basis):
             # get sizes
             ncoeff, batch_size, _ = cart_data.shape
             nframes = noncart_data.shape[0]
@@ -92,26 +89,23 @@ if gpu_available and gpu_backend == "numba":
                         _update(
                             cart_data,
                             (coeff, batch, idx),
-                            val * basis[coeff, frame] * noncart_data[frame, batch, point],
+                            val
+                            * basis[coeff, frame]
+                            * noncart_data[frame, batch, point],
                         )
-            
-                        
+
         return _grid_nbcuda
-  
+
     _grid["gpu"] = {False: _get_grid_nbcuda(False), True: _get_grid_nbcuda(True)}
-    
+
 if gpu_available and gpu_backend == "cupy":
-    
     from cupyx import jit
-    
+
     def _get_grid_cupy(is_complex):
-        
         _update = _utils._update[is_complex]
-    
+
         @jit.rawkernel()  # pragma: no cover
-        def _grid_cupy(
-                cart_data, noncart_data, interp_value, interp_index, basis
-        ):
+        def _grid_cupy(cart_data, noncart_data, interp_value, interp_index, basis):
             # get sizes
             ncoeff, batch_size, _ = cart_data.shape
             nframes = noncart_data.shape[0]
@@ -144,9 +138,11 @@ if gpu_available and gpu_backend == "cupy":
                         _update(
                             cart_data,
                             (coeff, batch, idx),
-                            val * basis[coeff, frame] * noncart_data[frame, batch, point],
+                            val
+                            * basis[coeff, frame]
+                            * noncart_data[frame, batch, point],
                         )
-                         
+
         return _grid_cupy
-  
+
     _grid["gpu"] = {False: _get_grid_cupy(False), True: _get_grid_cupy(True)}
