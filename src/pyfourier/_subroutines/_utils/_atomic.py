@@ -2,10 +2,10 @@
 
 __all__ = ["_update"]
 
-from . import _backend
+from . import _config
 
 # detect GPU
-gpu_available, gpu_backend = _backend.detect_gpu_backend()
+gpu_available, gpu_backend = _config.detect_gpu_backend()
 
 _update = {}
 

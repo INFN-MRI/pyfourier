@@ -13,9 +13,13 @@ __all__ = [
     "get_backend",
     "to_backend",
     "get_device",
+    "get_device_tag",
     "to_device",
     "astype",
     "ascontiguous",
+    "isreal",
+    "transpose",
+    "arange",
     "zeros",
 ]
 
@@ -117,6 +121,28 @@ def get_device(input):
             f"Accepts int, ArrayLike, Device, nb.cuda.cudadrv.driver.Device, cupy.cuda.Device or torch.device, got {input}"
         )
     return device_id
+
+
+def get_device_tag(device_id):
+    """
+    Get device type from device id.
+
+    Parameters
+    ----------
+    device_id : int
+        Device identifier. CPU is identified by -1; >= 0 marks the corresponding
+        GPU.
+
+    Returns
+    -------
+    device_tag : str
+        "cpu" for device_id == -1; "gpu" for everything else.
+
+    """
+    if device_id == -1:
+        return "cpu"
+    else:
+        return "gpu"
 
 
 def to_backend(backend, *input):
@@ -277,6 +303,94 @@ def ascontiguous(input):
         return input.contiguous()
     else:
         return backend.ascontiguousarray(input)
+
+
+def isreal(input):
+    """
+    Check if each element of input is real-valued or not.
+
+    All real-valued types are considered real.
+    Complex values are considered real when their imaginary part is 0.
+
+    Parameters
+    ----------
+    input : npt.ArrayLike
+        Input array like (np.ndarray, cp.ndarray or torch.Tensor).
+
+    Returns
+    -------
+    npt.ArrayLike
+        Tensor with boolean elements representing if each element of input is real-valued or not.
+
+    """
+    backend = get_backend(input)
+    try:
+        return backend.isreal(input)
+    except Exception:
+        return backend.ones_like(input, dtype=bool)
+
+
+def transpose(input, order):
+    """
+    Transpose tensor.
+
+    Parameters
+    ----------
+    input : npt.ArrayLike
+        Input array like (np.ndarray, cp.ndarray or torch.Tensor).
+    order : npt.ArrayLike
+        Desired order of axes.
+
+    Returns
+    -------
+    output : npt.ArrayLike
+        Output transposed array like (np.ndarray, cp.ndarray or torch.Tensor)
+
+    """
+    backend = get_backend(input)
+    if backend.__name__ == "torch":
+        return input.permute(*order)
+    else:
+        return input.transpose(*order)
+
+
+def arange(shape, dtype, device, backend):
+    """
+    Backend agnostic arange function.
+
+    Parameters
+    ----------
+    shape : int | tuple | list
+        Output shape.
+    dtype : ModuleType.dtype
+        Output tensor dtype.
+    device : ModuleType.device
+        Computational device of output tensor.
+    backend : ModuleType
+        Tensor backend (numpy, numba, cupy or torch).
+
+    Returns
+    -------
+    output : ArrayLike
+        Arange tensor of given shape, data type, device and backend.
+
+    """
+    # create torch tensor
+    if backend.__name__ == "torch":
+        return torch.arange(shape, dtype=dtype, device=device)
+
+    # create cupy array
+    if backend.__name__ == "cupy":
+        with device:
+            return cp.arange(shape, dtype=dtype)
+
+    # create numba.cuda array
+    if backend.__name__ == "numba" and device.id != -1:
+        with device:
+            output = np.arange(shape, dtype=dtype.name)
+            return nb.cuda.as_cuda_array(output)
+
+    return np.arange(input, dtype=dtype)
 
 
 def zeros(shape, dtype, device, backend):

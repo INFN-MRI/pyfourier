@@ -14,6 +14,9 @@ __all__ = ["cupy_enabled", "pytorch_enabled", "detect_gpu_backend"]
 import warnings
 from importlib import util
 
+import numba as nb
+import numba.cuda
+
 cupy_enabled = util.find_spec("cupy") is not None
 if cupy_enabled:
     try:

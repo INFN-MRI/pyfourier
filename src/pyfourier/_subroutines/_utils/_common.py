@@ -13,6 +13,11 @@ if _config.pytorch_enabled:
     import torch
 
 
+def _get_oversamp_shape(shape, oversamp, ndim):
+    """Determine oversampled shape."""
+    return [np.ceil(oversamp[n] * shape[n]).astype(np.int16) for n in ndim]
+
+
 def _is_complex_grid(input, basis, backend):
     """Determine if we need to perform complex gridding."""
     # check if data is complex

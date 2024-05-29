@@ -28,6 +28,7 @@ def _dense2sparse(data_in, mask, basis=None, device=None, threadsperblock=128): 
     ishape = mask.ishape  # image shape
     ndim = mask.ndim
     device = mask.device
+    device_tag = _utils.get_device_tag(device)
 
     # get tensor backend
     backend = _utils.get_backend(data_in)
@@ -42,7 +43,7 @@ def _dense2sparse(data_in, mask, basis=None, device=None, threadsperblock=128): 
 
     # reformat data for computation
     data_in = data_in.reshape(batch_size, ncoeff, *ishape)
-    data_in = _utils.contiguous(data_in.swapaxes(0, 1))
+    data_in = _utils.ascontiguous(data_in.swapaxes(0, 1))
 
     # preallocate output data
     data_out = _utils.zeros(
@@ -51,17 +52,17 @@ def _dense2sparse(data_in, mask, basis=None, device=None, threadsperblock=128): 
 
     # get grid_function
     if basis is None:
-        _do_mask = _mask[ndim - 1][device]
+        _do_mask = _mask[ndim - 1][device_tag]
     else:
-        _do_mask = _mask_subspace[ndim - 1][device]
+        _do_mask = _mask_subspace[ndim - 1][device_tag]
 
     # switch to numba
     data_out, data_in, basis = _utils.to_backend(_nb, data_out, data_in, basis)
 
     # do actual gridding
-    if device == "cpu" and basis is None:
+    if device_tag == "cpu" and basis is None:
         _do_mask(data_out, data_in, index)
-    elif device == "cpu" and basis is not None:
+    elif device_tag == "cpu" and basis is not None:
         _do_mask(data_out, data_in, index, basis)
     if basis is None:
         blockspergrid = _utils.calc_blocks_per_grid(

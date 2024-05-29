@@ -41,6 +41,7 @@ def _noncart2cart(
     is_stack = interpolator.is_stack
     scale = interpolator.scale
     device = interpolator.device
+    device_tag = _utils.get_device_tag(device)
 
     # get tensor backend
     backend = _utils.get_backend(data_in)
@@ -61,7 +62,7 @@ def _noncart2cart(
 
     # reformat data for computation
     data_in = data_in.reshape(batch_size, nframes, npts)
-    data_in = _utils.contiguous(data_in.swapaxes(0, 1))
+    data_in = _utils.ascontiguous(data_in.swapaxes(0, 1))
 
     # preallocate output data
     data_out = _utils.zeros(
@@ -73,17 +74,17 @@ def _noncart2cart(
 
     # get grid_function
     if basis is None:
-        _do_gridding = _grid[is_stack][ndim - 1][device][is_complex]
+        _do_gridding = _grid[is_stack][ndim - 1][device_tag][is_complex]
     else:
-        _do_gridding = _grid_subspace[is_stack][ndim - 1][device][is_complex]
+        _do_gridding = _grid_subspace[is_stack][ndim - 1][device_tag][is_complex]
 
     # switch to numba
     data_out, data_in, basis = _utils.to_backend(_nb, data_out, data_in, basis)
 
     # do actual gridding
-    if device == "cpu" and basis is None:
+    if device_tag == "cpu" and basis is None:
         _do_gridding(data_out, data_in, value, index)
-    elif device == "cpu" and basis is not None:
+    elif device_tag == "cpu" and basis is not None:
         _do_gridding(data_out, data_in, value, index, basis)
     if basis is None:
         blockspergrid = _utils.calc_blocks_per_grid(
