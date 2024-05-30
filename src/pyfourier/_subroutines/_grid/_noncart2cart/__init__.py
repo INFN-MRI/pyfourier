@@ -13,17 +13,18 @@ from . import _2D
 from . import _2D_subspace
 from . import _3D
 from . import _3D_subspace
-from . import _3Dstack
-from . import _3Dstack_subspace
 
-_grid = {
-    False: [_1D._grid, _2D._grid, _3D._grid],
-    True: [_3Dstack._grid, _3Dstack._grid, _3Dstack._grid],
-}
-_grid_subspace = {
-    False: [_1D_subspace._grid, _2D_subspace._grid, _3D_subspace._grid],
-    True: [_3Dstack_subspace._grid, _3Dstack_subspace._grid, _3Dstack_subspace._grid],
-}
+_grid = [_1D._grid, _2D._grid, _3D._grid]
+_grid_subspace = [_1D_subspace._grid, _2D_subspace._grid, _3D_subspace._grid]
+
+
+_cpu = _nb
+if _utils.cupy_enabled():
+    import cupy as _cp
+
+    _gpu = _cp
+else:
+    _gpu = _nb
 
 
 def _noncart2cart(
@@ -38,7 +39,6 @@ def _noncart2cart(
     dshape = interpolator.dshape  # data shape
     ishape = interpolator.ishape  # image shape
     ndim = interpolator.ndim
-    is_stack = interpolator.is_stack
     scale = interpolator.scale
     device = interpolator.device
     device_tag = _utils.get_device_tag(device)
@@ -74,12 +74,15 @@ def _noncart2cart(
 
     # get grid_function
     if basis is None:
-        _do_gridding = _grid[is_stack][ndim - 1][device_tag][is_complex]
+        _do_gridding = _grid[ndim - 1][device_tag][is_complex]
     else:
-        _do_gridding = _grid_subspace[is_stack][ndim - 1][device_tag][is_complex]
+        _do_gridding = _grid_subspace[ndim - 1][device_tag][is_complex]
 
-    # switch to numba
-    data_out, data_in, basis = _utils.to_backend(_nb, data_out, data_in, basis)
+    # switch to numba / cupy
+    if device_tag == "cpu":
+        data_out, data_in, basis = _utils.to_backend(_cpu, data_out, data_in, basis)
+    else:
+        data_out, data_in, basis = _utils.to_backend(_gpu, data_out, data_in, basis)
 
     # do actual gridding
     if device_tag == "cpu" and basis is None:

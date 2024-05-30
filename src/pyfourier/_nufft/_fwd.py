@@ -2,9 +2,10 @@
 
 __all__ = ["nufft"]
 
-from . import _nufft
-
 from .. import _subroutines
+
+from . import _nufft
+from . import _plan
 
 if _subroutines.pytorch_enabled:
     import torch
@@ -16,7 +17,15 @@ def nufft(
     shape=None,
     nufft_plan=None,
     basis=None,
-    device=-1,
+    zmap=None,
+    L=6,
+    nbins=(40, 40),
+    dt=None,
+    T=None,
+    L_batch_size=None,
+    weight=None,
+    norm=None,
+    device="cpu",
     threadsperblock=128,
     width=4,
     oversamp=1.25,
@@ -26,21 +35,47 @@ def nufft(
 
     Parameters
     ----------
-    image : torch.Tensor
+    image : ArrayLike
         Input image of shape ``(..., ncontrasts, ny, nx)`` (2D)
         or ``(..., ncontrasts, nz, ny, nx)`` (3D).
-    coord : torch.Tensor
+    coord : ArrayLike
         K-space coordinates of shape ``(ncontrasts, nviews, nsamples, ndims)``.
-        Coordinates must be normalized between ``(-0.5 * shape, 0.5 * shape)``.
     shape : int | Iterable[int], optional
         Cartesian grid size of shape ``(ndim,)``.
         If scalar, isotropic matrix is assumed.
         The default is ``None`` (grid size equals to input data size, i.e. ``osf = 1``).
-    basis : torch.Tensor, optional
+    basis : ArrayLike, optional
         Low rank subspace projection operator
         of shape ``(ncontrasts, ncoeff)``; can be ``None``. The default is ``None``.
-    device : str, optional
-        Computational device (``cpu`` or ``cuda:n``, with ``n=0, 1,...nGPUs``).
+    zmap : ArrayLike, optional
+        Field map in [Hz]; can be real (B0 map) or complex (R2* + 1i * B0).
+        The default is ``None``.
+    L : int, optional
+        Number of zmap segmentations. The default is ``6``.
+    nbins : int, optional
+        Granularity of exponential approximation.
+        For real zmap, it is a scalar (1D histogram).
+        For complex zmap, it must be a tuple of ints (2D histogram).
+        The default is ``(40, 40)``.
+    dt : float, optional
+        Dwell time in ms. The default is ``None``.
+    T : ArrayLike, optional
+        Tensor with shape ``(npts,)``, representing the sampling instant of
+        each k-space point along the readout. When T is ``None``, this is
+        inferred from ``dt`` (if provided), assuming that readout starts
+        immediately after excitation (i.e., TE=0).
+    L_batch_size : int, optional
+        Number of zmap segments to be processed in parallel. If ``None``,
+        process all segments simultaneously. The default is ``None``.
+    weight: ArrayLike, optional
+        Tensor to be used as a weight for the output k-space data (e.g., dcf**0.5).
+        Must be broadcastable with ``kspace`` (i.e., the output). The default is ``None``.
+    norm : str, optional
+        Keyword to specify the normalization mode (``None`` or ``"ortho"``).
+    device : str | int, optional
+        Computational device.
+        Can be either specified as a string (``cpu`` or ``cuda:n``, with ``n=0, 1,...nGPUs``),
+        or integer (``-1 (="cpu")`` or ``n (="cuda:n")``, with ``n=0, 1,...nGPUs``)
         The default is ``cpu``.
     threadsperblock : int
         CUDA blocks size (for GPU only). The default is ``128``.
@@ -55,7 +90,7 @@ def nufft(
 
     Returns
     -------
-    kspace : torch.Tensor
+    kspace : ArrayLike
         Output Non-Cartesian kspace of shape ``(..., ncontrasts, nviews, nsamples)``.
 
     Notes
@@ -71,41 +106,166 @@ def nufft(
     * ``coord.shape = (nviews, nsamples, ndim) -> (1, nviews, nsamples, ndim)``
 
     """
-    # get number of dimensions
-    ndim = coord.shape[-1]
-
-    # get shape if not provided
-    if shape is None:
-        shape = image.shape[-ndim:]
-
-    # plan interpolator
-    nufft_plan = _nufft.plan_nufft(coord, shape, width, oversamp, device)
-
     # detect backend and device
-    ibackend = _subroutines.get_backend(image)
+    backend = _subroutines.get_backend(image)
     idevice = _subroutines.get_device(image)
 
-    # make sure datatype is correct
-    if image.dtype in (ibackend.float16, ibackend.float32, ibackend.float64):
-        image = _subroutines.astype(image, ibackend.float32)
+    # if not provided, use original device
+    if device is None:
+        device = idevice
     else:
-        image = _subroutines.astype(image, ibackend.complex64)
+        if isinstance(device, str):
+            if device == "cpu":
+                device = -1
+            else:
+                device = int(device.split(":")[-1])
+
+    # if not provided, plan interpolator
+    if nufft_plan is None:
+        if shape is None:
+            shape = image.shape[-coord.shape[-1] :]
+
+        coord = _subroutines.astype(coord, backend.float32)
+        nufft_plan = _plan.plan_nufft(
+            coord, shape, width, oversamp, zmap, L, nbins, dt, T, L_batch_size
+        )
+
+    # make sure datatype is correct
+    dtype = image.dtype
+    if dtype in (backend.float16, backend.float32, backend.float64):
+        image = _subroutines.astype(image, backend.float32)
+    else:
+        image = _subroutines.astype(image, backend.complex64)
 
     # handle basis
     if basis is not None:
         # make sure datatype is correct
-        if image.dtype in (ibackend.float16, ibackend.float32, ibackend.float64):
-            basis = _subroutines.astype(basis, ibackend.float32)
+        if basis.dtype in (backend.float16, backend.float32, backend.float64):
+            basis = _subroutines.astype(basis, backend.float32)
         else:
-            basis = _subroutines.astype(basis, ibackend.complex64)
+            basis = _subroutines.astype(basis, backend.complex64)
 
-    # cast to device if necessary
-    if device is not None:
-        nufft_plan.to(device)
+    # handle weight
+    if weight is not None:
+        # make sure datatype is correct
+        if weight.dtype in (backend.float16, backend.float32, backend.float64):
+            weight = _subroutines.astype(weight, backend.float32)
+        else:
+            weight = _subroutines.astype(weight, backend.complex64)
 
-    pass
+    # cast to device if necessar
+    nufft_plan.to(device)
+    image = _subroutines.to_device(image, device)
+    if basis is not None:
+        basis = _subroutines.to_device(basis, device)
+    if weight is not None:
+        weight = _subroutines.to_device(weight, device)
+
+    # perform operation
+    if backend.__name__ == "torch":
+        if coord is None:
+            kspace = NUFFT.apply(
+                image, nufft_plan, basis, weight, threadsperblock, norm
+            )
+        else:
+            kspace = NUFFTTraj.apply(
+                image, coord, nufft_plan, basis, weight, threadsperblock, norm
+            )
+    else:
+        kspace = _nufft._nufft_fwd(
+            image, nufft_plan, basis, weight, threadsperblock, norm
+        )
+
+    # return
+    kspace = _subroutines.astype(kspace, dtype)
+    return _subroutines.to_device(kspace, idevice)
 
 
 # %% local subroutines
 if _subroutines.pytorch_enabled:
-    pass
+
+    class NUFFT(torch.autograd.Function):
+        @staticmethod
+        def forward(image, nufft_plan, basis, weight, threadsperblock, norm):
+            return _nufft._nufft_fwd(
+                image, nufft_plan, basis, weight, threadsperblock, norm
+            )
+
+        @staticmethod
+        def setup_context(ctx, inputs, output):
+            _, nufft_plan, basis, weight, threadsperblock, norm = inputs
+            ctx.set_materialize_grads(False)
+            ctx.nufft_plan = nufft_plan
+            ctx.basis = basis
+            ctx.weight = weight
+            ctx.threadsperblock = threadsperblock
+            ctx.norm = norm
+
+        @staticmethod
+        def backward(ctx, kspace):
+            nufft_plan = ctx.nufft_plan
+            basis = ctx.basis
+            weight = ctx.weight
+            threadsperblock = ctx.threadsperblock
+            norm = ctx.norm
+
+            # gradient with respect to samples
+            grad_kspace = _nufft._nufft_adj(
+                kspace, nufft_plan, basis, weight, threadsperblock, norm
+            )
+
+            return (
+                grad_kspace,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )
+
+    class NUFFTTraj(torch.autograd.Function):
+        @staticmethod
+        def forward(image, coord, nufft_plan, basis, weight, threadsperblock, norm):
+            return _nufft._nufft_fwd(
+                image, nufft_plan, basis, weight, threadsperblock, norm
+            )
+
+        @staticmethod
+        def setup_context(ctx, inputs, output):
+            image, coord, nufft_plan, basis, weight, threadsperblock, norm = inputs
+            ctx.save_for_backward(image, coord)
+            ctx.set_materialize_grads(False)
+            ctx.nufft_plan = nufft_plan
+            ctx.basis = basis
+            ctx.weight = weight
+            ctx.threadsperblock = threadsperblock
+            ctx.norm = norm
+
+        @staticmethod
+        def backward(ctx, kspace):
+            image, coord = ctx.saved_tensors
+            nufft_plan = ctx.nufft_plan
+            basis = ctx.basis
+            weight = ctx.weight
+            threadsperblock = ctx.threadsperblock
+            norm = ctx.norm
+
+            # gradient with respect to samples
+            grad_kspace = _nufft._nufft_adj(
+                kspace, nufft_plan, basis, weight, threadsperblock, norm
+            )
+
+            # gradient with respect to trajectory
+            grad_coord = _nufft._nufft_backward(
+                kspace, image, coord, nufft_plan, basis, weight, threadsperblock, norm
+            )
+
+            return (
+                grad_kspace,
+                grad_coord,
+                None,
+                None,
+                None,
+                None,
+                None,
+            )

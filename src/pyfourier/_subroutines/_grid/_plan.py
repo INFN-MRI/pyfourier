@@ -9,7 +9,7 @@ from .. import _utils
 
 
 class Interpolator:  # noqa
-    def __init__(self, coord, shape, is_stack, width=2, beta=1.0):
+    def __init__(self, coord, shape, width=2, beta=1.0):
         # expand singleton dimensions
         ishape = list(coord.shape[:-1])
         ndim = coord.shape[-1]
@@ -84,7 +84,6 @@ class Interpolator:  # noqa
         self.ishape = tuple(shape)
         self.scale = scale
         self.ndim = ndim
-        self.is_stack = is_stack
         self.device = None
 
     def to(self, device):  # noqa

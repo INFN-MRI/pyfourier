@@ -9,7 +9,7 @@ from .. import _utils
 
 
 class Mask:  # noqa
-    def __init__(self, indexes, shape):
+    def __init__(self, indexes, shape, zmap_t_kernel, zmap_s_kernel, L_batch_size):
         # expand singleton dimensions
         ishape = list(indexes.shape[:-1])
         ndim = indexes.shape[-1]
@@ -42,9 +42,12 @@ class Mask:  # noqa
         self.dshape = tuple(ishape)
         self.ishape = tuple(shape)
         self.ndim = ndim
+        self.zmap_t_kernel = zmap_t_kernel
+        self.zmap_s_kernel = zmap_s_kernel
+        self.zmap_batch_size = L_batch_size
         self.device = None
 
-    def to(self, device):
+    def to(self, device):  # noqa
         if self.device is None or device != self.device:
             self.index = list(self.index)
 
@@ -52,6 +55,11 @@ class Mask:  # noqa
             self.index = [_utils.to_device(idx, device, nb) for idx in self.index]
 
             self.index = tuple(self.index)
+
+            if self.zmap_t_kernel is not None:
+                self.zmap_t_kernel = _utils.to_device(self.zmap_t_kernel, device)
+                self.zmap_s_kernel = _utils.to_device(self.zmap_s_kernel, device)
+
             self.device = device
 
         return self

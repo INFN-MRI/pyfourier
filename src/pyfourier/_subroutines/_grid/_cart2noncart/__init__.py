@@ -13,21 +13,18 @@ from . import _2D
 from . import _2D_subspace
 from . import _3D
 from . import _3D_subspace
-from . import _3Dstack
-from . import _3Dstack_subspace
 
-_degrid = {
-    False: [_1D._degrid, _2D._degrid, _3D._degrid],
-    True: [_3Dstack._degrid, _3Dstack._degrid, _3Dstack._degrid],
-}
-_degrid_subspace = {
-    False: [_1D_subspace._degrid, _2D_subspace._degrid, _3D_subspace._degrid],
-    True: [
-        _3Dstack_subspace._degrid,
-        _3Dstack_subspace._degrid,
-        _3Dstack_subspace._degrid,
-    ],
-}
+_degrid = [_1D._degrid, _2D._degrid, _3D._degrid]
+_degrid_subspace = [_1D_subspace._degrid, _2D_subspace._degrid, _3D_subspace._degrid]
+
+
+_cpu = _nb
+if _utils.cupy_enabled():
+    import cupy as _cp
+
+    _gpu = _cp
+else:
+    _gpu = _nb
 
 
 def _cart2noncart(
@@ -42,7 +39,6 @@ def _cart2noncart(
     dshape = interpolator.dshape  # data shape
     ishape = interpolator.ishape  # image shape
     ndim = interpolator.ndim
-    is_stack = interpolator.is_stack
     scale = interpolator.scale
     device = interpolator.device
     device_tag = _utils.get_device_tag(device)
@@ -69,12 +65,15 @@ def _cart2noncart(
 
     # get grid_function
     if basis is None:
-        _do_degridding = _degrid[is_stack][ndim - 1][device_tag]
+        _do_degridding = _degrid[ndim - 1][device_tag]
     else:
-        _do_degridding = _degrid_subspace[is_stack][ndim - 1][device_tag]
+        _do_degridding = _degrid_subspace[ndim - 1][device_tag]
 
-    # switch to numba
-    data_out, data_in, basis = _utils.to_backend(_nb, data_out, data_in, basis)
+    # switch to numba / cupy
+    if device_tag == "cpu":
+        data_out, data_in, basis = _utils.to_backend(_cpu, data_out, data_in, basis)
+    else:
+        data_out, data_in, basis = _utils.to_backend(_gpu, data_out, data_in, basis)
 
     # do actual gridding
     if device_tag == "cpu" and basis is None:

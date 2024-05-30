@@ -22,6 +22,15 @@ _zerofill_subspace = [
 ]
 
 
+_cpu = _nb
+if _utils.cupy_enabled():
+    import cupy as _cp
+
+    _gpu = _cp
+else:
+    _gpu = _nb
+
+
 def _sparse2dense(data_in, mask, basis=None, device=None, threadsperblock=128):  # noqa
     # collect garbage
     _gc.collect()
@@ -69,8 +78,11 @@ def _sparse2dense(data_in, mask, basis=None, device=None, threadsperblock=128): 
     else:
         _do_zerofill = _zerofill_subspace[ndim - 1][device_tag][is_complex]
 
-    # switch to numba
-    data_out, data_in, basis = _utils.to_backend(_nb, data_out, data_in, basis)
+    # switch to numba / cupy
+    if device_tag == "cpu":
+        data_out, data_in, basis = _utils.to_backend(_cpu, data_out, data_in, basis)
+    else:
+        data_out, data_in, basis = _utils.to_backend(_gpu, data_out, data_in, basis)
 
     # do actual gridding
     if device_tag == "cpu" and basis is None:

@@ -44,6 +44,9 @@ def mri_exp_approx(zmap, t, lseg=6, bins=(40, 40), mask=None):  # , toeplitz=Fal
     backend = _utils.get_backend(input)
     device = _utils.get_device(input)
 
+    # move t to backend
+    t = _utils.to_backend(t, backend)
+
     # default
     if isinstance(bins, (list, tuple)) is False:
         bins = (bins, 5)
