@@ -40,10 +40,25 @@ def nufft(
         or ``(..., ncontrasts, nz, ny, nx)`` (3D).
     coord : ArrayLike
         K-space coordinates of shape ``(ncontrasts, nviews, nsamples, ndims)``.
-    shape : int | Iterable[int], optional
+    shape : int | Sequence[int], optional
         Cartesian grid size of shape ``(ndim,)``.
         If scalar, isotropic matrix is assumed.
         The default is ``None`` (grid size equals to input data size, i.e. ``osf = 1``).
+    nufft_plan : NUFFTPlan, optional
+        Structure containing sparse interpolator matrix:
+
+        * ndim (``int``): number of spatial dimensions.
+        * oversampling (``Iterable[float]``): grid oversampling factor (z, y, x).
+        * width (``Iterable[int]``): kernel width (z, y, x).
+        * beta (``Iterable[float]``): Kaiser Bessel parameter (z, y, x).
+        * os_shape (``Iterable[int]``): oversampled grid shape (z, y, x).
+        * shape (``Iterable[int]``): grid shape (z, y, x).
+        * interpolator (``Interpolator``): precomputed interpolator object.
+        * zmap_s_kernel (``ArrayLike``): zmap spatial basis.
+        * zmap_t_kernel (``ArrayLike``): zmap temporal basis.
+        * zmap_batch_size (``int``): zmap processing batch size.
+        * device (``str``): computational device.
+
     basis : ArrayLike, optional
         Low rank subspace projection operator
         of shape ``(ncontrasts, ncoeff)``; can be ``None``. The default is ``None``.
@@ -52,7 +67,7 @@ def nufft(
         The default is ``None``.
     L : int, optional
         Number of zmap segmentations. The default is ``6``.
-    nbins : int, optional
+    nbins : int | Sequence[int], optional
         Granularity of exponential approximation.
         For real zmap, it is a scalar (1D histogram).
         For complex zmap, it must be a tuple of ints (2D histogram).
@@ -79,11 +94,11 @@ def nufft(
         The default is ``cpu``.
     threadsperblock : int
         CUDA blocks size (for GPU only). The default is ``128``.
-    width : int | Iterable[int], optional
+    width : int | Sequence[int], optional
         Interpolation kernel full-width of shape ``(ndim,)``.
         If scalar, isotropic kernel is assumed.
         The default is ``4``.
-    oversamp : float | Iterable[float], optional
+    oversamp : float | Sequence[float], optional
         Grid oversampling factor of shape ``(ndim,)``.
         If scalar, isotropic oversampling is assumed.
         The default is ``1.25``.

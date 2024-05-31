@@ -7,7 +7,7 @@ import numpy as np
 from . import _utils
 
 
-def normalize_coordinates(input, shape, center=False):
+def normalize_coordinates(input, shape, center=True):
     """
     Normalize input coordinates to [-0.5 * shape[i], 0.5 * shape[i]], with i = x, y (, z).
 
@@ -15,17 +15,17 @@ def normalize_coordinates(input, shape, center=False):
 
     Parameters
     ----------
-    input : npt.ArrayLike
+    input : ArrayLike
         Input coordinates with arbitrary units.
-    shape : npt.ArrayLike
+    shape : ArrayLike
         Matrix shape of (x, y) or (x, y, z).
     center : bool, optional
-        If True, shift coordinates to have a final normalization between
-        [0, shape[i]] with i = x, y (, z). The default is False.
+        If False, shift coordinates to have a final normalization between
+        [0, shape[i]] with i = x, y (, z). The default is True.
 
     Returns
     -------
-    coord : npt.ArrayLike
+    coord : ArrayLike
         Output normalized coordinates.
 
     """
@@ -33,13 +33,25 @@ def normalize_coordinates(input, shape, center=False):
     device = _utils.get_device(input)
 
     # normalize
-    cabs = (input**2).sum(axis=-1) ** 0.5  #
-    coord = 0.5 * input / cabs[..., None]  # coord between -0.5 and 0.5
-    shape = _utils.to_device(shape, device, backend)
+    if (input < 0).any():  # coordinates
+        cabs = (input**2).sum(axis=-1) ** 0.5  #
+        coord = 0.5 * input / cabs[..., None]  # coord between -0.5 and 0.5
+        shape = _utils.to_device(shape, device, backend)
+        coord = shape * coord
 
-    if center:
-        return shape * coord + (shape // 2)
-    return shape * coord
+        # swit
+        if center is False:
+            coord = coord + (shape // 2)
+
+    else:
+        cabs = (input**2).sum(axis=-1) ** 0.5  #
+        coord = input / cabs[..., None]  # coord between 0.0 and 1.0
+        coord = shape * coord
+
+        if center:
+            coord = coord - (shape // 2)
+
+    return coord
 
 
 def _scale_coord(coord, shape, oversamp):

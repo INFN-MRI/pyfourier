@@ -18,13 +18,8 @@ _mask = [_1D._mask, _2D._mask, _3D._mask]
 _mask_subspace = [_1D_subspace._mask, _2D_subspace._mask, _3D_subspace._mask]
 
 
-_cpu = _nb
-if _utils.cupy_enabled():
-    import cupy as _cp
-
-    _gpu = _cp
-else:
-    _gpu = _nb
+# detect GPU
+_, gpu_backend = _utils.detect_gpu_backend()
 
 
 def _dense2sparse(data_in, mask, basis=None, device=None, threadsperblock=128):  # noqa
@@ -67,9 +62,11 @@ def _dense2sparse(data_in, mask, basis=None, device=None, threadsperblock=128): 
 
     # switch to numba / cupy
     if device_tag == "cpu":
-        data_out, data_in, basis = _utils.to_backend(_cpu, data_out, data_in, basis)
+        data_out, data_in, basis = _utils.to_backend(_nb, data_out, data_in, basis)
     else:
-        data_out, data_in, basis = _utils.to_backend(_gpu, data_out, data_in, basis)
+        data_out, data_in, basis = _utils.to_backend(
+            gpu_backend, data_out, data_in, basis
+        )
 
     # do actual gridding
     if device_tag == "cpu" and basis is None:

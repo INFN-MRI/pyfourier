@@ -1,4 +1,4 @@
-"""NUFFT planning subroutines."""
+"""NUFFT planning routines."""
 
 __all__ = ["plan_nufft"]
 
@@ -29,14 +29,14 @@ def plan_nufft(
     ----------
     coord : ArrayLike
         K-space coordinates of shape ``(ncontrasts, nviews, nsamples, ndims)``.
-    shape : int | Iterable[int]
+    shape : int | Sequence[int]
         Oversampled grid size of shape ``(ndim,)``.
         If scalar, isotropic matrix is assumed.
-    width : int | Iterable[int], optional
+    width : int | Sequence[int], optional
         Interpolation kernel full-width of shape ``(ndim,)``.
         If scalar, isotropic kernel is assumed.
         The default is ``3``.
-    oversamp : float | Iterable[float], optional
+    oversamp : float | Sequence[float], optional
         Grid oversampling factor of shape ``(ndim,)``.
         If scalar, isotropic oversampling is assumed.
         The default is ``1.125``.
@@ -45,7 +45,7 @@ def plan_nufft(
         The default is ``None``.
     L : int, optional
         Number of zmap segmentations. The default is ``6``.
-    nbins : int | Iterable[int], optional
+    nbins : int | Sequence[int], optional
         Granularity of exponential approximation.
         For real zmap, it is a scalar (1D histogram).
         For complex zmap, it must be a tuple of ints (2D histogram).
@@ -64,7 +64,7 @@ def plan_nufft(
 
     Returns
     -------
-    interpolator : NUFFTPlan
+    nufft_plan : NUFFTPlan
         Structure containing sparse interpolator matrix:
 
         * ndim (``int``): number of spatial dimensions.
@@ -143,7 +143,7 @@ def plan_nufft(
     os_shape = tuple(os_shape)
     shape = tuple(shape)
 
-    # get t
+    # compute zmap approximation
     if zmap is not None:
         # get time
         if T is None:
@@ -186,13 +186,13 @@ class NUFFTPlan:
     interpolator: object
     zmap_t_kernel: object
     zmap_s_kernel: object
-    zmap_batch_size: object
+    zmap_batch_size: int
     device: int
 
     def to(self, device):  # noqa
         if self.device is None or device != self.device:
             self.interpolator = self.interpolator.to(device)
-            if self.zmap_t_kernel is not None:
+            if self.zmap_s_kernel is not None:
                 self.zmap_t_kernel = _subroutines.to_device(self.zmap_t_kernel, device)
                 self.zmap_s_kernel = _subroutines.to_device(self.zmap_s_kernel, device)
             self.device = device

@@ -17,19 +17,19 @@ def _spfft_fwd(image, mask, basis, weight, threadsperblock, norm):  # noqa
     device = ndim.device
 
     # perform nufft
-    if zmap_t_kernel is None:
+    if zmap_s_kernel is None:
         kspace = _do_spfft_fwd(image, ndim, mask, basis, device, threadsperblock, norm)
     else:
         # init kspace
         kspace = 0.0
 
         # compute number of chunks
-        n_zmap_batches = int(np.ceil(zmap_t_kernel.shape[0] / zmap_batch_size))
+        n_zmap_batches = int(np.ceil(zmap_s_kernel.shape[0] / zmap_batch_size))
 
         # loop over chunks
         for n in range(n_zmap_batches):
             start = n * zmap_batch_size
-            stop = min(zmap_t_kernel.shape[0], (n + 1) * zmap_batch_size)
+            stop = min(zmap_s_kernel.shape[0], (n + 1) * zmap_batch_size)
 
             # current batch spatial coefficients
             C = zmap_s_kernel[start:stop]
@@ -74,38 +74,38 @@ def _spfft_adj(kspace, mask, basis, weight, threadsperblock, norm):  # noqa
         kspace = weight * kspace
 
     # perform nufft adjoint
-    if zmap_t_kernel is None:
+    if zmap_s_kernel is None:
         image = _do_spfft_adj(kspace, ndim, mask, basis, device, threadsperblock, norm)
     else:
         # init image
         image = 0.0
 
         # compute number of chunks
-        n_zmap_batches = int(np.ceil(zmap_t_kernel.shape[0] / zmap_batch_size))
+        n_zmap_batches = int(np.ceil(zmap_s_kernel.shape[0] / zmap_batch_size))
 
         # loop over chunks
         for n in range(n_zmap_batches):
             start = n * zmap_batch_size
-            stop = min(zmap_t_kernel.shape[0], (n + 1) * zmap_batch_size)
+            stop = min(zmap_s_kernel.shape[0], (n + 1) * zmap_batch_size)
 
             # current batch temporal coefficients
-            B = zmap_t_kernel[start:stop].conj()
+            B = zmap_t_kernel[start:stop]
             B = B.T  # (npts, batchsize)
 
             # temporary kspace
-            ktmp = B * kspace[..., None]
+            ktmp = B.conj() * kspace[..., None]
             ktmp = ktmp[None, ...].swapaxes(0, -1)[..., 0]
 
             # current batch spatial coefficients
-            C = zmap_s_kernel[start:stop].conj()
+            C = zmap_s_kernel[start:stop]
             C = C[..., None].swapaxes(0, -1)[0]
 
             # temporary image
-            itmp = _do_nufft_adj(ktmp, ndim, mask, basis, device, threadsperblock, norm)
+            itmp = _do_spfft_adj(ktmp, ndim, mask, basis, device, threadsperblock, norm)
             itmp = itmp[..., None].swapaxes(0, -1)[0]
 
             # update image
-            itmp = (C * itmp).sum(axis=-1)
+            itmp = (C.conj() * itmp).sum(axis=-1)
             image = image + itmp
 
     return image

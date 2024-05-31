@@ -1,4 +1,4 @@
-"""Sparse FFT planning subroutines."""
+"""Sparse FFT planning routines."""
 
 __all__ = ["plan_spfft"]
 
@@ -47,7 +47,7 @@ def plan_spfft(
 
     Returns
     -------
-    mask : dict
+    mask : Mask
         Structure containing sparse sampling matrix:
 
         * indexes (``torch.Tensor[int]``): indexes of the non-zero entries of interpolator sparse matrix of shape (ndim, ncoord).
@@ -83,9 +83,9 @@ def plan_spfft(
     else:
         shape = np.array(shape, dtype=np.int16)
 
-    # normalize coord between [-mtx / 2 to mtx /2] regardless of input
+    # normalize coord between [0 to mtx] regardless of input
     # normalization
-    indexes = _subroutines.normalize_coordinates(indexes, shape, True)
+    indexes = _subroutines.normalize_coordinates(indexes, shape, False)
 
     # check for Cartesian axes
     is_cart = [
@@ -99,7 +99,7 @@ def plan_spfft(
     ), "Input coordinates must lie on Cartesian grid, got non-uniform coord! Please use NUFFT instead."
     indexes = _subroutines.astype(indexes, backend.int16)
 
-    # get t
+    # compute zmap approximation
     if zmap is not None:
         # get time
         if T is None:

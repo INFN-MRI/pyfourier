@@ -64,7 +64,7 @@ def get_backend(input):
 
     Parameters
     ----------
-    input : npt.ArrayLike
+    input : ArrayLike
         Input array like (np.ndarray, cp.ndarray or torch.Tensor).
 
     Returns
@@ -90,7 +90,7 @@ def get_device(input):
 
     Parameters
     ----------
-    input : int | npt.ArrayLike
+    input : int | ArrayLike
         Input array like (np.ndarray, cp.ndarray or torch.Tensor) or Device.
 
     Returns
@@ -153,13 +153,13 @@ def to_backend(backend, *input):
     ----------
     backend : ModuleType
         Target tensor backend (numpy, numba, cupy, torch).
-    input : list[npt.ArrayLike]
+    input : Sequence[ArrayLike]
         Input array(s) like (np.ndarray, cp.ndarray or torch.Tensor).
 
 
     Returns
     -------
-    input : list[npt.ArrayLike]
+    output : Sequence[ArrayLike]
         Zero-copy representation of input array(s) in target backend.
 
     """
@@ -205,7 +205,7 @@ def to_device(input, device_id, backend=None):
 
     Parameters
     ----------
-    input : npt.ArrayLike
+    input : ArrayLike
         Input array like (np.ndarray, cp.ndarray or torch.Tensor).
     device_id : int
         Device identifier. CPU is identified by -1; >= 0 marks the corresponding
@@ -222,7 +222,7 @@ def to_device(input, device_id, backend=None):
 
     Returns
     -------
-    output : npt.ArrayLike
+    output : ArrayLike
         Output array like (np.ndarray, cp.ndarray or torch.Tensor)
         on the target device (and backend, if specified).
 
@@ -262,14 +262,14 @@ def astype(input, dtype):
 
     Parameters
     ----------
-    input : npt.ArrayLike
+    input : ArrayLike
         Input array like (np.ndarray, cp.ndarray or torch.Tensor).
     dtype : ModuleType.dtype
         Target datatype..
 
     Returns
     -------
-    output : npt.ArrayLike
+    output : ArrayLike
         Output array like (np.ndarray, cp.ndarray or torch.Tensor)
         of the desired dtype.
 
@@ -289,12 +289,12 @@ def ascontiguous(input):
 
     Parameters
     ----------
-    input : npt.ArrayLike
+    input : ArrayLike
         Input array like (np.ndarray, cp.ndarray or torch.Tensor).
 
     Returns
     -------
-    output : npt.ArrayLike
+    output : ArrayLike
         Output contigous array like (np.ndarray, cp.ndarray or torch.Tensor)
 
     """
@@ -314,12 +314,12 @@ def isreal(input):
 
     Parameters
     ----------
-    input : npt.ArrayLike
+    input : ArrayLike
         Input array like (np.ndarray, cp.ndarray or torch.Tensor).
 
     Returns
     -------
-    npt.ArrayLike
+    output : ArrayLike
         Tensor with boolean elements representing if each element of input is real-valued or not.
 
     """
@@ -336,14 +336,14 @@ def transpose(input, order):
 
     Parameters
     ----------
-    input : npt.ArrayLike
+    input : ArrayLike
         Input array like (np.ndarray, cp.ndarray or torch.Tensor).
-    order : npt.ArrayLike
+    order : ArrayLike
         Desired order of axes.
 
     Returns
     -------
-    output : npt.ArrayLike
+    output : ArrayLike
         Output transposed array like (np.ndarray, cp.ndarray or torch.Tensor)
 
     """
@@ -360,7 +360,7 @@ def arange(shape, dtype, device, backend):
 
     Parameters
     ----------
-    shape : int | tuple | list
+    shape : int | Sequence[int]
         Output shape.
     dtype : ModuleType.dtype
         Output tensor dtype.
@@ -393,13 +393,52 @@ def arange(shape, dtype, device, backend):
     return np.arange(input, dtype=dtype)
 
 
+def ones(shape, dtype, device, backend):
+    """
+    Create a ones tensor of given shape, data type, device and backend.
+
+    Parameters
+    ----------
+    shape : int | Sequence[int]
+        Output shape.
+    dtype : ModuleType.dtype
+        Output tensor dtype.
+    device : ModuleType.device
+        Computational device of output tensor.
+    backend : ModuleType
+        Tensor backend (numpy, numba, cupy or torch).
+
+    Returns
+    -------
+    output : ArrayLike
+        Ones tensor of given shape, data type, device and backend.
+
+    """
+    # create torch tensor
+    if backend.__name__ == "torch":
+        return torch.ones(shape, dtype=dtype, device=device)
+
+    # create cupy array
+    if backend.__name__ == "cupy":
+        with device:
+            return cp.ones(shape, dtype=dtype)
+
+    # create numba.cuda array
+    if backend.__name__ == "numba" and device.id != -1:
+        with device:
+            output = np.ones(shape, dtype=dtype.name)
+            return nb.cuda.as_cuda_array(output)
+
+    return np.ones(input, dtype=dtype)
+
+
 def zeros(shape, dtype, device, backend):
     """
     Create a zeroes tensor of given shape, data type, device and backend.
 
     Parameters
     ----------
-    shape : int | tuple | list
+    shape : int | Sequence[int]
         Output shape.
     dtype : ModuleType.dtype
         Output tensor dtype.

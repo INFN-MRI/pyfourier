@@ -15,7 +15,7 @@ def mri_exp_approx(zmap, t, lseg=6, bins=(40, 40), mask=None):  # , toeplitz=Fal
 
     Parameters
     ----------
-    zmap : npt.ArrayLike
+    zmap : ArrayLike
         Rate map defined as ``zmap = R2*_map + 1j * B0_map``.
         ``*_map`` and ``t`` should have reciprocal units.
         If ``zmap`` is real, assume ``zmap = B0_map``.
@@ -24,18 +24,18 @@ def mri_exp_approx(zmap, t, lseg=6, bins=(40, 40), mask=None):  # , toeplitz=Fal
         Readout time in ``[s]`` of shape ``(npts,)``.
     lseg : int, optional
         Number of time segments. The default is ``6``.
-    bins : int || tuple(int), optional
+    bins : int | Sequence[int] optional
         Number of histogram bins to use for ``(B0, T2)``. The default is ``(40, 40)``
         If it is a scalar, assume ``bins = (bins, 40)``.
-    mask : npt.ArrayLike, optional
+    mask : ArrayLike, optional
         Boolean mask to avoid histogram of background values.
         The default is ``None`` (use the whole map).
 
     Returns
     -------
-    b : npt.ArrayLike
+    b : ArrayLike
         Temporal interpolator of shape ``(lseg, npts)``.
-    ct : npt.ArrayLike
+    ct : ArrayLike
         Off-resonance phase map at each time segment center of shape
         ``(lseg, *zmap.shape)``.
 

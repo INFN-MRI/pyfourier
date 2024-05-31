@@ -37,10 +37,22 @@ def sparse_ifft(
         Input sparse kspace of shape ``(..., ncontrasts, nviews, nsamples)``.
     indexes : ArrayLike
         Sampled k-space points indexes of shape ``(ncontrasts, nviews, nsamples, ndims)``.
-    shape : int | Iterable[int], optional
+    shape : int | Sequence[int], optional
         Cartesian grid size of shape ``(ndim,)``.
         If scalar, isotropic matrix is assumed.
         The default is ``None`` (grid size equals to input data size, i.e. ``osf = 1``).
+    mask : Mask | optional
+        Structure containing sparse sampling matrix:
+
+        * indexes (``torch.Tensor[int]``): indexes of the non-zero entries of interpolator sparse matrix of shape (ndim, ncoord).
+        * dshape (``Iterable[int]``): oversample grid shape of shape (ndim,). Order of axes is (z, y, x).
+        * ishape (``Iterable[int]``): interpolator shape (ncontrasts, nview, nsamples)
+        * ndim (``int``): number of spatial dimensions.
+        * zmap_s_kernel (``ArrayLike``): zmap spatial basis.
+        * zmap_t_kernel (``ArrayLike``): zmap temporal basis.
+        * zmap_batch_size (``int``): zmap processing batch size.
+        * device (``str``): computational device.
+
     basis : ArrayLike, optional
         Low rank subspace projection operator
         of shape ``(ncontrasts, ncoeff)``; can be ``None``. The default is ``None``.
@@ -49,7 +61,7 @@ def sparse_ifft(
         The default is ``None``.
     L : int, optional
         Number of zmap segmentations. The default is ``6``.
-    nbins : int, optional
+    nbins : int | Sequence[int], optional
         Granularity of exponential approximation.
         For real zmap, it is a scalar (1D histogram).
         For complex zmap, it must be a tuple of ints (2D histogram).

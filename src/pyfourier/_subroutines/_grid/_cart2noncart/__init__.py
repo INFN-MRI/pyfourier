@@ -18,13 +18,8 @@ _degrid = [_1D._degrid, _2D._degrid, _3D._degrid]
 _degrid_subspace = [_1D_subspace._degrid, _2D_subspace._degrid, _3D_subspace._degrid]
 
 
-_cpu = _nb
-if _utils.cupy_enabled():
-    import cupy as _cp
-
-    _gpu = _cp
-else:
-    _gpu = _nb
+# detect GPU
+_, gpu_backend = _utils.detect_gpu_backend()
 
 
 def _cart2noncart(
@@ -71,9 +66,11 @@ def _cart2noncart(
 
     # switch to numba / cupy
     if device_tag == "cpu":
-        data_out, data_in, basis = _utils.to_backend(_cpu, data_out, data_in, basis)
+        data_out, data_in, basis = _utils.to_backend(_nb, data_out, data_in, basis)
     else:
-        data_out, data_in, basis = _utils.to_backend(_gpu, data_out, data_in, basis)
+        data_out, data_in, basis = _utils.to_backend(
+            gpu_backend, data_out, data_in, basis
+        )
 
     # do actual gridding
     if device_tag == "cpu" and basis is None:

@@ -56,7 +56,7 @@ class Mask:  # noqa
 
             self.index = tuple(self.index)
 
-            if self.zmap_t_kernel is not None:
+            if self.zmap_s_kernel is not None:
                 self.zmap_t_kernel = _utils.to_device(self.zmap_t_kernel, device)
                 self.zmap_s_kernel = _utils.to_device(self.zmap_s_kernel, device)
 

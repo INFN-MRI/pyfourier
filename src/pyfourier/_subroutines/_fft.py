@@ -1,6 +1,6 @@
 """Centered fft subroutines."""
 
-__all__ = ["fft", "ifft"]
+__all__ = ["fft", "ifft", "fftshift", "ifftshift"]
 
 from . import _utils
 
@@ -13,9 +13,9 @@ def fft(input, axes=None, norm="ortho", centered=True):
 
     Parameters
     ----------
-    input : npt.ArrayLike
+    input : ArrayLike
         Input signal.
-    axes : Iterable[int], optional
+    axes : Sequence[int], optional
         Axes over which to compute the FFT.
         If not specified, apply FFT over all the axes.
     norm : str, optional
@@ -25,7 +25,7 @@ def fft(input, axes=None, norm="ortho", centered=True):
 
     Returns
     -------
-    output : npt.ArrayLike
+    output : ArrayLike
         Output signal.
 
     Examples
@@ -98,9 +98,9 @@ def ifft(input, axes=None, norm="ortho", centered=True):
 
     Parameters
     ----------
-    input :  npt.ArrayLike
+    input :  ArrayLike
         Input signal.
-    axes : Iterable[int]
+    axes : Sequence[int]
         Axes over which to compute the iFFT.
         If not specified, apply iFFT over all the axes.
     norm : str, optional
@@ -110,7 +110,7 @@ def ifft(input, axes=None, norm="ortho", centered=True):
 
     Returns
     -------
-    output :  npt.ArrayLike
+    output :  ArrayLike
         Output signal.
 
     Examples
@@ -171,6 +171,106 @@ def ifft(input, axes=None, norm="ortho", centered=True):
             output = backend.fft.ifftn(input, axis=ax, norm=norm)
 
     return output
+
+
+def fftshift(input, axes=None):
+    """
+    Shift the zero-frequency component to the center of the spectrum.
+
+    This function swaps half-spaces for all axes listed (defaults to all).
+    Note that ``y[0]`` is the Nyquist component only if ``len(x)`` is even.
+
+    Parameters
+    ----------
+    x : ArrayLike
+        Input array.
+    axes : Sequence[int], optional
+        Axes over which to shift.  Default is None, which shifts all axes.
+
+    Returns
+    -------
+    y : ArrayLike
+        The shifted array.
+
+    See Also
+    --------
+    ifftshift : The inverse of `fftshift`.
+
+    Examples
+    --------
+    >>> freqs = np.fft.fftfreq(10, 0.1)
+    >>> freqs
+    array([ 0.,  1.,  2., ..., -3., -2., -1.])
+    >>> np.fft.fftshift(freqs)
+    array([-5., -4., -3., -2., -1.,  0.,  1.,  2.,  3.,  4.])
+
+    Shift the zero-frequency component only along the second axis:
+
+    >>> import numpy as np
+    >>> import pyfourier as pyft
+    >>> freqs = np.fft.fftfreq(9, d=1./9).reshape(3, 3)
+    >>> freqs
+    array([[ 0.,  1.,  2.],
+           [ 3.,  4., -4.],
+           [-3., -2., -1.]])
+    >>> pyft.fftshift(freqs, axes=(1,))
+    array([[ 2.,  0.,  1.],
+           [-4.,  3.,  4.],
+           [-1., -3., -2.]])
+
+    """
+    backend = _utils.get_backend(input)
+    ax = _normalize_axes(axes, input.ndim)
+    if backend.__name__ == "torch":
+        return backend.fft.fftshift(input, dim=ax)
+    else:
+        return backend.fft.fftshift(input, axes=ax)
+
+
+def ifftshift(x, axes=None):
+    """
+    Invert `fftshift`.
+
+    Although identical for even-length `x`, the
+    functions differ by one sample for odd-length `x`.
+
+    Parameters
+    ----------
+    x : ArrayLike
+        Input array.
+    axes : Sequence[int], optional
+        Axes over which to calculate.  Defaults to None, which shifts all axes.
+
+    Returns
+    -------
+    y : ArrayLike
+        The shifted array.
+
+    See Also
+    --------
+    fftshift : Shift zero-frequency component to the center of the spectrum.
+
+    Examples
+    --------
+    >>> import numpy as np
+    >>> import pyfourier as pyft
+    >>> freqs = np.fft.fftfreq(9, d=1./9).reshape(3, 3)
+    >>> freqs
+    array([[ 0.,  1.,  2.],
+           [ 3.,  4., -4.],
+           [-3., -2., -1.]])
+    >>> pyft.ifftshift(pyft.fftshift(freqs))
+    array([[ 0.,  1.,  2.],
+           [ 3.,  4., -4.],
+           [-3., -2., -1.]])
+
+    """
+    backend = _utils.get_backend(input)
+    ax = _normalize_axes(axes, input.ndim)
+    if backend.__name__ == "torch":
+        return backend.fft.ifftshift(input, dim=ax)
+    else:
+        return backend.fft.ifftshift(input, axes=ax)
 
 
 # %% local subroutines
