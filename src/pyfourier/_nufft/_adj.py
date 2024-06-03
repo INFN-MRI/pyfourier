@@ -91,7 +91,7 @@ def nufft_adj(
         Can be either specified as a string (``cpu`` or ``cuda:n``, with ``n=0, 1,...nGPUs``),
         or integer (``-1 (="cpu")`` or ``n (="cuda:n")``, with ``n=0, 1,...nGPUs``)
         The default is ``cpu``.
-    threadsperblock : int
+    threadsperblock : int, optional
         CUDA blocks size (for GPU only). The default is ``128``.
     width : int | Sequence[int], optional
         Interpolation kernel full-width of shape ``(ndim,)``.
