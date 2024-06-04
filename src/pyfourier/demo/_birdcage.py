@@ -4,30 +4,31 @@ import numpy as np
 
 __all__ = ["birdcage_maps"]
 
+
 def birdcage_maps(shape, r=1.5, nzz=8, dtype=complex):
     """
     Simulates birdcage coil sensitivies.
 
     Parameters
     ----------
-    shape : Sequence[int 
+    shape : Sequence[int
         Sensitivity maps shape,
-        Can be of length ``3`` (``(nc, ny, nx)``) 
+        Can be of length ``3`` (``(nc, ny, nx)``)
         and 4 (``(nc, nz, ny, nx)``.
-    r : float, optional 
+    r : float, optional
         Relative radius of birdcage.
         The default is ``1.5``.
-    nzz : int, optional 
+    nzz : int, optional
         Number of coils per ring.
         The default is ``8``.
-    dtype : dtype, optional 
+    dtype : dtype, optional
         Data type. The default is ``complex``.
 
     Returns
     -------
     smap : NDArray
         Coil sensitivities of shape ``(shape)``.
-        
+
     """
     if len(shape) == 3:
         nc, ny, nx = shape
