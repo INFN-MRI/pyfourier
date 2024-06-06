@@ -1,6 +1,6 @@
 """Sampling pattern planning subroutines."""
 
-__all__ = ["Mask"]
+__all__ = ["FFTPlan"]
 
 import numpy as np
 import numba as nb
@@ -8,7 +8,7 @@ import numba as nb
 from .. import _utils
 
 
-class Mask:  # noqa
+class FFTPlan:  # noqa
     def __init__(self, indexes, shape, zmap_t_kernel, zmap_s_kernel, L_batch_size):
         # expand singleton dimensions
         ishape = list(indexes.shape[:-1])

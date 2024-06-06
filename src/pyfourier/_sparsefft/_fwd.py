@@ -9,13 +9,16 @@ from . import _plan
 
 if _subroutines.pytorch_enabled:
     import torch
+    USE_TORCH = True
+else:
+    USE_TORCH = False
 
 
 def sparse_fft(
     image,
     indexes=None,
     shape=None,
-    mask=None,
+    plan=None,
     basis=None,
     zmap=None,
     L=6,
@@ -42,13 +45,11 @@ def sparse_fft(
         Cartesian grid size of shape ``(ndim,)``.
         If scalar, isotropic matrix is assumed.
         The default is ``None`` (grid size equals to input data size, i.e. ``osf = 1``).
-    mask : Mask | optional
+    plan : FFTPlan, optional
         Structure containing sparse sampling matrix:
 
-        * indexes (``torch.Tensor[int]``): indexes of the non-zero entries of interpolator sparse matrix of shape (ndim, ncoord).
-        * dshape (``Iterable[int]``): oversample grid shape of shape (ndim,). Order of axes is (z, y, x).
-        * ishape (``Iterable[int]``): interpolator shape (ncontrasts, nview, nsamples)
-        * ndim (``int``): number of spatial dimensions.
+        * indexes (``ArrayLike``): indexes of the non-zero entries of interpolator sparse matrix of shape (ndim, ncoord).
+        * shape (``Sequence[int]``): oversampled grid shape of shape (ndim,). Order of axes is (z, y, x).
         * zmap_s_kernel (``ArrayLike``): zmap spatial basis.
         * zmap_t_kernel (``ArrayLike``): zmap temporal basis.
         * zmap_batch_size (``int``): zmap processing batch size.
@@ -107,6 +108,17 @@ def sparse_fft(
     * ``indexes.shape = (nviews, nsamples, ndim) -> (1, nviews, nsamples, ndim)``
 
     """
+    # switch to torch if possible
+    if USE_TORCH:
+        ibackend = _subroutines.get_backend(image)
+        image = _subroutines.to_backend(torch, image)
+        if indexes is not None:
+            indexes = _subroutines.to_backend(torch, indexes)
+        if basis is not None:
+            basis = _subroutines.to_backend(torch, basis)
+        if zmap is not None:
+            zmap = _subroutines.to_backend(torch, zmap)
+            
     # detect backend and device
     backend = _subroutines.get_backend(image)
     idevice = _subroutines.get_device(image)
@@ -122,12 +134,12 @@ def sparse_fft(
                 device = int(device.split(":")[-1])
 
     # if not provided, plan interpolator
-    if mask is None:
+    if plan is None:
         if shape is None:
             shape = image.shape[-indexes.shape[-1] :]
 
         indexes = _subroutines.astype(indexes, backend.int16)
-        mask = _plan.plan_spfft(indexes, shape, zmap, L, nbins, dt, T, L_batch_size)
+        plan = _plan.plan_spfft(indexes, shape, zmap, L, nbins, dt, T, L_batch_size)
 
     # make sure datatype is correct
     dtype = image.dtype
@@ -153,7 +165,7 @@ def sparse_fft(
             weight = _subroutines.astype(weight, backend.complex64)
 
     # cast to device if necessary
-    mask.to(device)
+    plan.to(device)
     image = _subroutines.to_device(image, device)
     if basis is not None:
         basis = _subroutines.to_device(basis, device)
@@ -162,15 +174,21 @@ def sparse_fft(
 
     # perform operation
     if backend.__name__ == "torch":
-        kspace = SparseFFT.apply(image, mask, basis, weight, threadsperblock, norm)
+        kspace = SparseFFT.apply(image, plan, basis, weight, threadsperblock, norm)
     else:
         kspace = _sparsefft._spfft_fwd(
-            image, mask, basis, weight, threadsperblock, norm
+            image, plan, basis, weight, threadsperblock, norm
         )
 
     # return
     kspace = _subroutines.astype(kspace, dtype)
-    return _subroutines.to_device(kspace, idevice)
+    kspace = _subroutines.to_device(kspace, idevice)
+    
+    # original backend
+    if USE_TORCH:
+        kspace = _subroutines.to_backend(ibackend, kspace)
+        
+    return kspace
 
 
 # %% local subroutines
@@ -178,16 +196,16 @@ if _subroutines.pytorch_enabled:
 
     class SparseFFT(torch.autograd.Function):
         @staticmethod
-        def forward(image, mask, basis, weight, threadsperblock, norm):
+        def forward(image, plan, basis, weight, threadsperblock, norm):
             return _sparsefft._spfft_fwd(
-                image, mask, basis, weight, threadsperblock, norm
+                image, plan, basis, weight, threadsperblock, norm
             )
 
         @staticmethod
         def setup_context(ctx, inputs, output):
-            _, mask, basis, weight, threadsperblock, norm = inputs
+            _, plan, basis, weight, threadsperblock, norm = inputs
             ctx.set_materialize_grads(False)
-            ctx.mask = mask
+            ctx.plan = plan
             ctx.basis = basis
             ctx.weight = weight
             ctx.threadsperblock = threadsperblock
@@ -195,7 +213,7 @@ if _subroutines.pytorch_enabled:
 
         @staticmethod
         def backward(ctx, kspace):
-            mask = ctx.mask
+            plan = ctx.plan
             basis = ctx.basis
             weight = ctx.weight
             threadsperblock = ctx.threadsperblock
@@ -203,7 +221,7 @@ if _subroutines.pytorch_enabled:
 
             # gradient with respect to samples
             grad_kspace = _sparsefft._spfft_adj(
-                kspace, mask, basis, weight, threadsperblock, norm
+                kspace, plan, basis, weight, threadsperblock, norm
             )
 
             return (

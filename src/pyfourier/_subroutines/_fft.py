@@ -4,6 +4,9 @@ __all__ = ["fft", "ifft", "fftshift", "ifftshift"]
 
 from . import _utils
 
+if _utils.mklfft_enabled():
+    import mkl_fft
+
 
 def fft(input, axes=None, norm="ortho", centered=True):
     """
@@ -76,16 +79,26 @@ def fft(input, axes=None, norm="ortho", centered=True):
             )
         else:
             output = backend.fft.fftn(input, dim=ax, norm=norm)
-    else:
+    elif backend.__name__ == "numpy" and _utils.mklfft_enabled():
         if centered:
             output = backend.fft.fftshift(
-                backend.fft.fftn(
-                    backend.fft.ifftshift(input, axes=ax), axis=ax, norm=norm
+                mkl_fft.fftn(
+                    backend.fft.ifftshift(input, axes=ax), axes=ax, norm=norm
                 ),
                 axes=ax,
             )
         else:
-            output = backend.fft.fftn(input, axis=ax, norm=norm)
+            output = backend.fft.fftn(input, axes=ax, norm=norm)
+    else:
+        if centered:
+            output = backend.fft.fftshift(
+                backend.fft.fftn(
+                    backend.fft.ifftshift(input, axes=ax), axes=ax, norm=norm
+                ),
+                axes=ax,
+            )
+        else:
+            output = backend.fft.fftn(input, axes=ax, norm=norm)
 
     return output
 
@@ -159,6 +172,16 @@ def ifft(input, axes=None, norm="ortho", centered=True):
             )
         else:
             output = backend.fft.ifftn(input, dim=ax, norm=norm)
+    elif backend.__name__ == "numpy" and _utils.mklfft_enabled():
+        if centered:
+            output = backend.fft.fftshift(
+                mkl_fft.ifftn(
+                    backend.fft.ifftshift(input, axes=ax), axis=ax, norm=norm
+                ),
+                axes=ax,
+            )
+        else:
+            output = backend.fft.ifftn(input, axis=ax, norm=norm)
     else:
         if centered:
             output = backend.fft.fftshift(

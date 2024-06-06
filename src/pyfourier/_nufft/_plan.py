@@ -9,6 +9,11 @@ import numpy as np
 
 from .. import _subroutines
 
+if _subroutines.pytorch_enabled:
+    import torch
+    USE_TORCH = True
+else:
+    USE_TORCH = False
 
 def plan_nufft(
     coord,
@@ -68,11 +73,11 @@ def plan_nufft(
         Structure containing sparse interpolator matrix:
 
         * ndim (``int``): number of spatial dimensions.
-        * oversampling (``Iterable[float]``): grid oversampling factor (z, y, x).
-        * width (``Iterable[int]``): kernel width (z, y, x).
-        * beta (``Iterable[float]``): Kaiser Bessel parameter (z, y, x).
-        * os_shape (``Iterable[int]``): oversampled grid shape (z, y, x).
-        * shape (``Iterable[int]``): grid shape (z, y, x).
+        * oversampling (``Sequence[float]``): grid oversampling factor (z, y, x).
+        * width (``Sequence[int]``): kernel width (z, y, x).
+        * beta (``Sequence[float]``): Kaiser Bessel parameter (z, y, x).
+        * os_shape (``Sequence[int]``): oversampled grid shape (z, y, x).
+        * shape (``Sequence[int]``): grid shape (z, y, x).
         * interpolator (``Interpolator``): precomputed interpolator object.
         * zmap_s_kernel (``ArrayLike``): zmap spatial basis.
         * zmap_t_kernel (``ArrayLike``): zmap temporal basis.
@@ -92,6 +97,14 @@ def plan_nufft(
     * ``coord.shape = (nviews, nsamples, ndim) -> (1, nviews, nsamples, ndim)``
 
     """
+    # switch to torch if possible
+    if USE_TORCH:
+        coord = _subroutines.to_backend(torch, coord)
+        if zmap is not None:
+            zmap = _subroutines.to_backend(torch, zmap)
+        if T is not None:
+            T = _subroutines.to_backend(torch, T)
+            
     # get parameters
     ndim = coord.shape[-1]
 

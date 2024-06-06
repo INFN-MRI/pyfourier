@@ -9,6 +9,9 @@ from . import _plan
 
 if _subroutines.pytorch_enabled:
     import torch
+    USE_TORCH = True
+else:
+    USE_TORCH = False
 
 
 def nufft_adj(
@@ -121,6 +124,17 @@ def nufft_adj(
     * ``coord.shape = (nviews, nsamples, ndim) -> (1, nviews, nsamples, ndim)``
 
     """
+    # switch to torch if possible
+    if USE_TORCH:
+        ibackend = _subroutines.get_backend(kspace)
+        kspace = _subroutines.to_backend(torch, kspace)
+        if coord is not None:
+            coord = _subroutines.to_backend(torch, coord)
+        if basis is not None:
+            basis = _subroutines.to_backend(torch, basis)
+        if zmap is not None:
+            zmap = _subroutines.to_backend(torch, zmap)
+            
     # detect backend and device
     backend = _subroutines.get_backend(kspace)
     idevice = _subroutines.get_device(kspace)
@@ -190,7 +204,13 @@ def nufft_adj(
 
     # return
     image = _subroutines.astype(image, dtype)
-    return _subroutines.to_device(image, idevice)
+    image = _subroutines.to_device(image, idevice)
+    
+    # original backend
+    if USE_TORCH:
+        image = _subroutines.to_backend(ibackend, image)
+        
+    return image
 
 
 # %% local subroutines

@@ -6,6 +6,12 @@ import numpy as np
 
 from .. import _subroutines
 
+if _subroutines.pytorch_enabled:
+    import torch
+    USE_TORCH = True
+else:
+    USE_TORCH = False
+
 
 def plan_spfft(
     indexes, shape, zmap=None, L=6, nbins=(40, 40), dt=None, T=None, L_batch_size=None
@@ -15,9 +21,9 @@ def plan_spfft(
 
     Parameters
     ----------
-    indexes : torch.Tensor
+    indexes : ArrayLike
         Sampled k-space points indexes of shape ``(ncontrasts, nviews, nsamples, ndims)``.
-    shape : int | Iterable[int]
+    shape : int | Sequence[int]
         Oversampled grid size of shape ``(ndim,)``.
         If scalar, isotropic matrix is assumed.
     device : int, optional
@@ -47,13 +53,11 @@ def plan_spfft(
 
     Returns
     -------
-    mask : Mask
+    plan : FFTPlan
         Structure containing sparse sampling matrix:
 
-        * indexes (``torch.Tensor[int]``): indexes of the non-zero entries of interpolator sparse matrix of shape (ndim, ncoord).
-        * dshape (``Iterable[int]``): oversample grid shape of shape (ndim,). Order of axes is (z, y, x).
-        * ishape (``Iterable[int]``): interpolator shape (ncontrasts, nview, nsamples)
-        * ndim (``int``): number of spatial dimensions.
+        * indexes (``ArrayLike``): indexes of the non-zero entries of interpolator sparse matrix of shape (ndim, ncoord).
+        * shape (``Sequence[int]``): oversampled grid shape of shape (ndim,). Order of axes is (z, y, x).
         * zmap_s_kernel (``ArrayLike``): zmap spatial basis.
         * zmap_t_kernel (``ArrayLike``): zmap temporal basis.
         * zmap_batch_size (``int``): zmap processing batch size.
@@ -72,6 +76,14 @@ def plan_spfft(
         * ``indexes.shape = (nviews, nsamples, ndim) -> (1, nviews, nsamples, ndim)``
 
     """
+    # switch to torch if possible
+    if USE_TORCH:
+        indexes = _subroutines.to_backend(torch, indexes)
+        if zmap is not None:
+            zmap = _subroutines.to_backend(torch, zmap)
+        if T is not None:
+            T = _subroutines.to_backend(torch, T)
+            
     # get backend
     backend = _subroutines.get_backend(indexes)
 
@@ -115,4 +127,4 @@ def plan_spfft(
     else:
         zmap_t_kernel, zmap_s_kernel = None, None
 
-    return _subroutines.Mask(indexes, shape, zmap_t_kernel, zmap_s_kernel, L_batch_size)
+    return _subroutines.FFTPlan(indexes, shape, zmap_t_kernel, zmap_s_kernel, L_batch_size)

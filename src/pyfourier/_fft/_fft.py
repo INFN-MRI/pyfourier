@@ -1,24 +1,22 @@
-"""Sparse FFT and iFFT routines."""
+"""FFT and iFFT routines."""
 
-__all__ = ["_spfft_fwd", "_spfft_adj"]
+__all__ = ["_fft_fwd", "_fft_adj"]
 
-import gc
 import numpy as np
 
 from .. import _subroutines
 
 
-def _spfft_fwd(image, mask, basis, weight, threadsperblock, norm):  # noqa
+def _fft_fwd(image, mask, basis, norm):  # noqa
     # unpack plan
     ndim = len(mask.shape)
     zmap_t_kernel = mask.zmap_t_kernel
     zmap_s_kernel = mask.zmap_s_kernel
     zmap_batch_size = mask.zmap_batch_size
-    device = mask.device
 
     # perform nufft
     if zmap_s_kernel is None:
-        kspace = _do_spfft_fwd(image, ndim, mask, basis, device, threadsperblock, norm)
+        kspace = _do_fft_fwd(image, ndim, mask, basis, norm)
     else:
         # init kspace
         kspace = 0.0
@@ -40,7 +38,7 @@ def _spfft_fwd(image, mask, basis, weight, threadsperblock, norm):  # noqa
             itmp = itmp[None, ...].swapaxes(0, -1)[..., 0]
 
             # temporary kspace
-            ktmp = _do_spfft_fwd(itmp, ndim, mask, basis, device, threadsperblock, norm)
+            ktmp = _do_fft_fwd(itmp, ndim, mask, basis, norm)
             ktmp = ktmp[..., None].swapaxes(0, -1)[0]
 
             # current batch temporal coefficients
@@ -54,28 +52,19 @@ def _spfft_fwd(image, mask, basis, weight, threadsperblock, norm):  # noqa
             # update kspace
             kspace = kspace + ktmp
 
-    # apply weight
-    if weight is not None:
-        kspace = weight * kspace
-
     return kspace
 
 
-def _spfft_adj(kspace, mask, basis, weight, threadsperblock, norm):  # noqa
+def _fft_adj(kspace, mask, basis, norm):  # noqa
     # unpack plan
     ndim = len(mask.shape)
     zmap_t_kernel = mask.zmap_t_kernel
     zmap_s_kernel = mask.zmap_s_kernel
     zmap_batch_size = mask.zmap_batch_size
-    device = mask.device
-
-    # apply weight
-    if weight is not None:
-        kspace = weight * kspace
 
     # perform nufft adjoint
     if zmap_s_kernel is None:
-        image = _do_spfft_adj(kspace, ndim, mask, basis, device, threadsperblock, norm)
+        image = _do_fft_adj(kspace, ndim, mask, basis, norm)
     else:
         # init image
         image = 0.0
@@ -101,7 +90,7 @@ def _spfft_adj(kspace, mask, basis, weight, threadsperblock, norm):  # noqa
             C = C[..., None].swapaxes(0, -1)[0]
 
             # temporary image
-            itmp = _do_spfft_adj(ktmp, ndim, mask, basis, device, threadsperblock, norm)
+            itmp = _do_fft_adj(ktmp, ndim, mask, basis, norm)
             itmp = itmp[..., None].swapaxes(0, -1)[0]
 
             # update image
@@ -112,33 +101,52 @@ def _spfft_adj(kspace, mask, basis, weight, threadsperblock, norm):  # noqa
 
 
 # %% local subroutines
-def _do_spfft_fwd(image, ndim, mask, basis, device, threadsperblock, norm):
-    # collect garbage
-    gc.collect()
+def _do_fft_fwd(image, ndim, mask, basis, norm):
 
     # FFT
     kspace = _subroutines.fft(image, axes=range(-ndim, 0), norm=norm)
-
-    # interpolate
-    kspace = _subroutines._dense2sparse(kspace, mask, basis, device, threadsperblock)
-
-    # collect garbage
-    gc.collect()
+    
+    # Backproject on contrast space
+    kspace = _basis_adj(kspace, basis, ndim)
+    
+    # Sample
+    if mask.indexes is not None:
+        kspace = kspace * mask.indexes
 
     return kspace
 
 
-def _do_spfft_adj(kspace, ndim, mask, basis, device, threadsperblock, norm):
-    # collect garbage
-    gc.collect()
-
-    # gridding
-    kspace = _subroutines._sparse2dense(kspace, mask, basis, device, threadsperblock)
+def _do_fft_adj(kspace, ndim, mask, basis, norm):
+    
+    # Sample
+    if mask.indexes is not None:
+        kspace = kspace * mask.indexes
+        
+    # Project on subspace
+    kspace = _basis_fwd(kspace, basis, ndim)
 
     # IFFT
     image = _subroutines.ifft(kspace, axes=range(-ndim, 0), norm=norm)
-
-    # collect garbage
-    gc.collect()
-
+    
     return image
+
+
+def _basis_fwd(kspace, basis, ndim):
+    if basis is not None:
+        b = basis # (T, K)
+        kspace = kspace[..., None].swapaxes(-ndim-1, -1)
+        kspace = kspace @ b
+        kspace = kspace.swapaxes(-ndim-1, -1)[..., 0]
+        
+    return kspace
+
+
+def _basis_adj(kspace, basis, ndim):
+    if basis is not None:
+        b = basis.conj().T  # (K, T)
+        kspace = kspace[..., None].swapaxes(-ndim-1, -1)
+        kspace = kspace @ b
+        kspace = kspace.swapaxes(-ndim-1, -1)[..., 0]
+        
+    return kspace
+
