@@ -1,6 +1,6 @@
-"""Toeplitz FFT /NUFFT routines."""
+"""Sparse (Cartesian and Non-Cartesian) Gram FFT routines."""
 
-__all__ = ["_toeplitz"]
+__all__ = ["_sparsegram"]
 
 import gc
 import numpy as np
@@ -8,7 +8,7 @@ import numpy as np
 from .. import _subroutines
 
 
-def _toeplitz(image, gram_matrix, threadsperblock, norm):  # noqa
+def _sparsegram(image, gram_matrix, threadsperblock, norm):  # noqa
     # unpack plan
     ndim = gram_matrix.ndim
     os_shape = gram_matrix.shape
@@ -20,7 +20,7 @@ def _toeplitz(image, gram_matrix, threadsperblock, norm):  # noqa
 
     # perform nufft
     if zmap_s_kernel is None:
-        image = _do_toeplitz(
+        image = _do_sparsegram(
             image, ndim, shape, os_shape, gram_matrix, threadsperblock, norm
         )
     else:
@@ -37,29 +37,26 @@ def _toeplitz(image, gram_matrix, threadsperblock, norm):  # noqa
 
             # current batch spatial coefficients
             C = zmap_s_kernel[start:stop]
+            C = C[..., None].swapaxes(0, -1)
 
             # temporary image
-            if ndim == 1:
-                itmp = C * image[..., None, :]
-            elif ndim == 2:
-                itmp = C * image[..., None, :, :]
-            elif ndim == 3:
-                itmp = C * image[..., None, :, :, :]
+            itmp = C * image[..., None]
+            itmp = itmp[None, ...].swapaxes(0, -1)[..., 0]
 
             # apply gram filter
-            itmp = _do_toeplitz(
+            itmp = _do_sparsegram(
                 itmp, ndim, shape, os_shape, gram_matrix, threadsperblock, norm
             )
 
             # update image
-            itmp = (C.conj() * itmp).sum(axis=-ndim - 1)
+            itmp = (C.conj() * itmp).sum(axis=0)
             image = image + itmp
 
     return image
 
 
 # %% local subroutines
-def _do_toeplitz(image, ndim, shape, os_shape, gram_matrix, threadsperblock, norm):
+def _do_sparsegram(image, ndim, shape, os_shape, gram_matrix, threadsperblock, norm):
     # collect garbage
     gc.collect()
 
@@ -67,13 +64,13 @@ def _do_toeplitz(image, ndim, shape, os_shape, gram_matrix, threadsperblock, nor
     image = _subroutines._resize(image, list(image.shape[:-ndim]) + list(os_shape))
 
     # FFT
-    kspace = _subroutines.fft(image, axes=range(-ndim, 0), norm=norm)
+    kspace = _subroutines.fft(image, axes=range(-ndim, 0), norm=norm, centered=False)
 
     # interpolate
     kspace = _subroutines._bdot(kspace, gram_matrix, threadsperblock)
 
     # IFFT
-    image = _subroutines.ifft(kspace, axes=range(-ndim, 0), norm=norm)
+    image = _subroutines.ifft(kspace, axes=range(-ndim, 0), norm=norm, centered=False)
 
     # crop
     image = _subroutines._resize(image, list(image.shape[:-ndim]) + list(shape))

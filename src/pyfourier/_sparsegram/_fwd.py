@@ -1,16 +1,19 @@
-"""Sparse Toeplitz main wrapper."""
+"""Sparse (Cartesian and Non-Cartesian) Gram FFT main wrapper."""
 
-__all__ = ["toeplitz"]
+__all__ = ["sparse_gram"]
 
 from .. import _subroutines
 
-from . import _toeplitz
+from . import _sparsegram
 
 if _subroutines.pytorch_enabled:
     import torch
+    USE_TORCH = True
+else:
+    USE_TORCH = False
 
 
-def toeplitz(
+def sparse_gram(
     image,
     gram_matrix,
     norm=None,
@@ -18,7 +21,7 @@ def toeplitz(
     threadsperblock=128,
 ):
     """
-    N-dimensional sparse Fast Fourier Transform.
+    N-dimensional sparse (Cartesian and Non-Cartesian) Gram FFT.
 
     Parameters
     ----------
@@ -71,9 +74,9 @@ def toeplitz(
 
     # perform operation
     if backend.__name__ == "torch":
-        image = Toeplitz.apply(image, gram_matrix, threadsperblock, norm)
+        image = SparseGram.apply(image, gram_matrix, threadsperblock, norm)
     else:
-        image = _toeplitz._toeplitz(image, gram_matrix, threadsperblock, norm)
+        image = _sparsegram._sparsegram(image, gram_matrix, threadsperblock, norm)
 
     # return
     image = _subroutines.astype(image, dtype)
@@ -83,10 +86,10 @@ def toeplitz(
 # %% local subroutines
 if _subroutines.pytorch_enabled:
 
-    class Toeplitz(torch.autograd.Function):
+    class SparseGram(torch.autograd.Function):
         @staticmethod
         def forward(image, gram_matrix, threadsperblock, norm):
-            return _toeplitz._toeplitz(image, gram_matrix, threadsperblock, norm)
+            return _sparsegram._sparsegram(image, gram_matrix, threadsperblock, norm)
 
         @staticmethod
         def setup_context(ctx, inputs, output):
@@ -103,12 +106,10 @@ if _subroutines.pytorch_enabled:
             norm = ctx.norm
 
             # gradient with respect to image
-            grad_image = _toeplitz._toeplitz(image, gram_matrix, threadsperblock, norm)
+            grad_image = _sparsegram._sparsegram(image, gram_matrix, threadsperblock, norm)
 
             return (
                 grad_image,
-                None,
-                None,
                 None,
                 None,
                 None,

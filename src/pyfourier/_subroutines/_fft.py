@@ -4,7 +4,7 @@ __all__ = ["fft", "ifft", "fftshift", "ifftshift"]
 
 from . import _utils
 
-if _utils.mklfft_enabled():
+if _utils.mklfft_enabled:
     import mkl_fft
 
 

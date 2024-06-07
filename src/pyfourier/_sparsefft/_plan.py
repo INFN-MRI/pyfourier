@@ -14,7 +14,7 @@ else:
 
 
 def plan_spfft(
-    indexes, shape, zmap=None, L=6, nbins=(40, 40), dt=None, T=None, L_batch_size=None
+    indexes, shape, zmap=None, L=6, nbins=(40, 40), dt=None, T=None, L_batch_size=None,
 ):
     """
     Precompute sparse FFT object.
@@ -86,6 +86,7 @@ def plan_spfft(
             
     # get backend
     backend = _subroutines.get_backend(indexes)
+    device = _subroutines.get_device(indexes)
 
     # get parameters
     ndim = indexes.shape[-1]
@@ -96,7 +97,6 @@ def plan_spfft(
         shape = np.array(shape, dtype=np.int16)
 
     # normalize coord between [0 to mtx] regardless of input
-    # normalization
     indexes = _subroutines.normalize_coordinates(indexes, shape, False)
 
     # check for Cartesian axes
@@ -110,21 +110,26 @@ def plan_spfft(
         is_cart.all()
     ), "Input coordinates must lie on Cartesian grid, got non-uniform coord! Please use NUFFT instead."
     indexes = _subroutines.astype(indexes, backend.int16)
-
+    
     # compute zmap approximation
     if zmap is not None:
         # get time
         if T is None:
             assert dt is not None, "Please provide raster time dt if T is not known"
-            T = dt * np.arange(indexes.shape[-2], dtype=np.float32)
-
+            T = dt * _subroutines.arange(indexes.shape[-2], backend.float32, device, backend)
+                        
         # compute zmap spatial and temporal basis
         zmap_t_kernel, zmap_s_kernel = _subroutines.mri_exp_approx(zmap, T, L, nbins)
 
         # defaut z batch size
         if L_batch_size is None:
             L_batch_size = L
+
     else:
         zmap_t_kernel, zmap_s_kernel = None, None
 
-    return _subroutines.FFTPlan(indexes, shape, zmap_t_kernel, zmap_s_kernel, L_batch_size)
+    # plan
+    plan = _subroutines.FFTPlan(True, indexes, shape, zmap_t_kernel, zmap_s_kernel, L_batch_size)
+
+    return plan
+

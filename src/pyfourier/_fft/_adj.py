@@ -1,6 +1,6 @@
 """iFFT main wrapper."""
 
-__all__ = ["ifft"]
+__all__ = ["ifftn"]
 
 from .. import _subroutines
 
@@ -14,7 +14,7 @@ else:
     USE_TORCH = False
 
 
-def ifft(
+def ifftn(
     ndim,
     kspace,
     mask=None,
@@ -28,6 +28,7 @@ def ifft(
     L_batch_size=None,
     norm=None,
     device="cpu",
+    verbose=0,
 ):
     """
     N-dimensional inverse Fast Fourier Transform.
@@ -81,6 +82,8 @@ def ifft(
         Can be either specified as a string (``cpu`` or ``cuda:n``, with ``n=0, 1,...nGPUs``),
         or integer (``-1 (="cpu")`` or ``n (="cuda:n")``, with ``n=0, 1,...nGPUs``)
         The default is ``cpu``.
+    verbose : bool
+        Verbosity flag. The default is ``0`` (silent). Select ``2`` for debug level.
 
     Returns
     -------
@@ -99,6 +102,8 @@ def ifft(
             basis = _subroutines.to_backend(torch, basis)
         if zmap is not None:
             zmap = _subroutines.to_backend(torch, zmap)
+        if T is not None:
+            T = _subroutines.to_backend(torch, T)
              
     # detect backend and device
     backend = _subroutines.get_backend(kspace)
@@ -165,7 +170,7 @@ if _subroutines.pytorch_enabled:
 
     class IFFT(torch.autograd.Function):
         @staticmethod
-        def forward(kspace, plan, basis, weight, threadsperblock, norm):
+        def forward(kspace, plan, basis, norm):
             return _fft._fft__adj(kspace, plan, basis, norm)
 
         @staticmethod
@@ -187,8 +192,6 @@ if _subroutines.pytorch_enabled:
 
             return (
                 grad_image,
-                None,
-                None,
                 None,
                 None,
                 None,

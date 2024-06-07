@@ -1,6 +1,6 @@
 """Sparse FFT main wrapper."""
 
-__all__ = ["sparse_fft"]
+__all__ = ["sparse_fftn"]
 
 from .. import _subroutines
 
@@ -14,7 +14,7 @@ else:
     USE_TORCH = False
 
 
-def sparse_fft(
+def sparse_fftn(
     image,
     indexes=None,
     shape=None,
@@ -118,6 +118,8 @@ def sparse_fft(
             basis = _subroutines.to_backend(torch, basis)
         if zmap is not None:
             zmap = _subroutines.to_backend(torch, zmap)
+        if T is not None:
+            T = _subroutines.to_backend(torch, T)
             
     # detect backend and device
     backend = _subroutines.get_backend(image)

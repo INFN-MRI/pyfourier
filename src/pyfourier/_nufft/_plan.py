@@ -69,7 +69,7 @@ def plan_nufft(
 
     Returns
     -------
-    nufft_plan : NUFFTPlan
+    plan : NUFFTPlan
         Structure containing sparse interpolator matrix:
 
         * ndim (``int``): number of spatial dimensions.
@@ -104,6 +104,10 @@ def plan_nufft(
             zmap = _subroutines.to_backend(torch, zmap)
         if T is not None:
             T = _subroutines.to_backend(torch, T)
+            
+    # get backend
+    backend = _subroutines.get_backend(coord)
+    device = _subroutines.get_device(coord)
             
     # get parameters
     ndim = coord.shape[-1]
@@ -155,24 +159,26 @@ def plan_nufft(
     beta = tuple(beta)
     os_shape = tuple(os_shape)
     shape = tuple(shape)
-
+    
     # compute zmap approximation
     if zmap is not None:
         # get time
         if T is None:
             assert dt is not None, "Please provide raster time dt if T is not known"
-            T = dt * np.arange(coord.shape[-2], dtype=np.float32)
-
+            T = dt * _subroutines.arange(coord.shape[-2], backend.float32, device, backend)
+            
         # compute zmap spatial and temporal basis
         zmap_t_kernel, zmap_s_kernel = _subroutines.mri_exp_approx(zmap, T, L, nbins)
-
+        
         # defaut z batch size
         if L_batch_size is None:
             L_batch_size = L
+
     else:
         zmap_t_kernel, zmap_s_kernel = None, None
 
-    return NUFFTPlan(
+    # plan
+    plan = NUFFTPlan(
         ndim,
         oversamp,
         width,
@@ -185,6 +191,8 @@ def plan_nufft(
         L_batch_size,
         None,
     )
+        
+    return plan
 
 
 # %% local utils

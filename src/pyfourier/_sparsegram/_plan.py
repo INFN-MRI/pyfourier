@@ -1,6 +1,6 @@
 """NUFFT or sparse FFT self-adjoint planning routines."""
 
-__all__ = ["plan_toeplitz"]
+__all__ = ["plan_spgram"]
 
 from dataclasses import dataclass
 
@@ -9,8 +9,13 @@ import numpy as np
 from .. import _subroutines
 from .. import _nufft
 
+if _subroutines.pytorch_enabled:
+    import torch
+    USE_TORCH = True
+else:
+    USE_TORCH = False
 
-def plan_toeplitz(
+def plan_spgram(
     coord,
     shape,
     basis=None,
@@ -26,7 +31,7 @@ def plan_toeplitz(
     device="cpu",
 ):
     """
-    Compute spatio-temporal kernel for fast self-adjoint operation.
+    Compute spatio-temporal kernel for fast self-adjoint Sparse FFT / NUFFT operation.
 
     Parameters
     ----------
@@ -76,6 +81,18 @@ def plan_toeplitz(
         Structure containing Toeplitz kernel (i.e., Fourier transform of system tPSF).
 
     """
+    # switch to torch if possible
+    if USE_TORCH:
+        coord = _subroutines.to_backend(torch, coord)
+        if basis is not None:
+            basis = _subroutines.to_backend(torch, basis)
+        if zmap is not None:
+            zmap = _subroutines.to_backend(torch, zmap)
+        if T is not None:
+            T = _subroutines.to_backend(torch, T)
+        if weight is not None:
+            weight = _subroutines.to_backend(torch, weight)
+            
     # detect backend and device
     backend = _subroutines.get_backend(coord)
 
@@ -85,7 +102,7 @@ def plan_toeplitz(
             device = -1
         else:
             device = int(device.split(":")[-1])
-
+            
     # expand singleton dimensions
     ndim = coord.shape[-1]
 
@@ -97,12 +114,19 @@ def plan_toeplitz(
         shape = np.asarray([shape] * ndim, dtype=np.int16)
     else:
         shape = np.asarray(shape, dtype=np.int16)[-ndim:]
+        
+    # offload to device
+    coord = _subroutines.to_device(coord, device)
 
     # if weight are not provided, assume uniform sampling density
     if weight is None:
         weight = _subroutines.ones(coord.shape[:-1], backend.float32, device, backend)
     else:
         weight = _subroutines.to_device(weight, device)
+        
+    # if zmap is provided, offload to device
+    if zmap is None:
+        zmap = _subroutines.to_device(zmap, device)
 
     # if spatio-temporal basis is provided, check reality and offload to device
     if basis is not None:

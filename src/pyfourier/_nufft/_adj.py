@@ -134,6 +134,8 @@ def nufft_adj(
             basis = _subroutines.to_backend(torch, basis)
         if zmap is not None:
             zmap = _subroutines.to_backend(torch, zmap)
+        if T is not None:
+            T = _subroutines.to_backend(torch, T)
             
     # detect backend and device
     backend = _subroutines.get_backend(kspace)

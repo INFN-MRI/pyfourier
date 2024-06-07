@@ -123,7 +123,7 @@ def nufft(
     * ``coord.shape = (nsamples, ndim) -> (1, 1, nsamples, ndim)``
     * ``coord.shape = (nviews, nsamples, ndim) -> (1, nviews, nsamples, ndim)``
 
-    """
+    """        
     # switch to torch if possible
     if USE_TORCH:
         ibackend = _subroutines.get_backend(image)
@@ -134,11 +134,15 @@ def nufft(
             basis = _subroutines.to_backend(torch, basis)
         if zmap is not None:
             zmap = _subroutines.to_backend(torch, zmap)
+        if T is not None:
+            T = _subroutines.to_backend(torch, T)
+        if weight is not None:
+            weight = _subroutines.to_backend(torch, weight)
             
     # detect backend and device
     backend = _subroutines.get_backend(image)
     idevice = _subroutines.get_device(image)
-
+    
     # if not provided, use original device
     if device is None:
         device = idevice
@@ -148,7 +152,7 @@ def nufft(
                 device = -1
             else:
                 device = int(device.split(":")[-1])
-
+                
     # if not provided, plan interpolator
     if nufft_plan is None:
         if shape is None:
@@ -156,7 +160,7 @@ def nufft(
 
         coord = _subroutines.astype(coord, backend.float32)
         nufft_plan = _plan.plan_nufft(
-            coord, shape, width, oversamp, zmap, L, nbins, dt, T, L_batch_size
+            coord, shape, width, oversamp, zmap, L, nbins, dt, T, L_batch_size,
         )
 
     # make sure datatype is correct

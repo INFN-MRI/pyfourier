@@ -1,6 +1,6 @@
 """FFT main wrapper."""
 
-__all__ = ["fft"]
+__all__ = ["fftn"]
 
 from .. import _subroutines
 
@@ -14,7 +14,7 @@ else:
     USE_TORCH = False
 
 
-def fft(
+def fftn(
     ndim,
     image,
     mask=None,
@@ -99,6 +99,8 @@ def fft(
             basis = _subroutines.to_backend(torch, basis)
         if zmap is not None:
             zmap = _subroutines.to_backend(torch, zmap)
+        if T is not None:
+            T = _subroutines.to_backend(torch, T)
             
     # detect backend and device
     backend = _subroutines.get_backend(image)
@@ -187,8 +189,6 @@ if _subroutines.pytorch_enabled:
 
             return (
                 grad_kspace,
-                None,
-                None,
                 None,
                 None,
                 None,
