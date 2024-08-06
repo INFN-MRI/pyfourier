@@ -8,6 +8,7 @@ from . import _sparsegram
 
 if _subroutines.pytorch_enabled:
     import torch
+
     USE_TORCH = True
 else:
     USE_TORCH = False
@@ -106,7 +107,9 @@ if _subroutines.pytorch_enabled:
             norm = ctx.norm
 
             # gradient with respect to image
-            grad_image = _sparsegram._sparsegram(image, gram_matrix, threadsperblock, norm)
+            grad_image = _sparsegram._sparsegram(
+                image, gram_matrix, threadsperblock, norm
+            )
 
             return (
                 grad_image,

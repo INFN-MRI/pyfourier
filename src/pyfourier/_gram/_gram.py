@@ -35,7 +35,7 @@ def _gram(image, gram_matrix, norm):  # noqa
 
             # current batch spatial coefficients
             C = zmap_s_kernel[start:stop]
-            C = C[..., None].swapaxes(0, -1)[0] # (nz, ny, nseg)
+            C = C[..., None].swapaxes(0, -1)[0]  # (nz, ny, nseg)
 
             # temporary image
             itmp = image[..., None] * C
@@ -54,32 +54,44 @@ def _gram(image, gram_matrix, norm):  # noqa
 
 # %% local subroutines
 def _do_gram(image, gram_matrix, norm):
-    
+
     # collect garbage
     gc.collect()
-    
+
     # unpack input
     islowrank = gram_matrix.islowrank
     haszmap = gram_matrix.zmap_s_kernel is not None
-    
+
     # keep original shape
     shape = image.shape
-    
+
     # reshape for computation
-    if islowrank:  
+    if islowrank:
         if haszmap:
-            image = image.reshape(image.shape[0], -1, image.shape[-3], np.prod(image.shape[-2:])) # (nseg, nbatches, ncontrasts, nvoxels)
-            image =  _subroutines.transpose(image, (1, 0, 3, 2)) # (nbatches, nseg, nvoxels, ncontrasts)
-            image = image.reshape(image.shape[:2], *shape[-2:], image.shape[-1]) # (nbatches, nseg, nz, ny, ncontrasts)
+            image = image.reshape(
+                image.shape[0], -1, image.shape[-3], np.prod(image.shape[-2:])
+            )  # (nseg, nbatches, ncontrasts, nvoxels)
+            image = _subroutines.transpose(
+                image, (1, 0, 3, 2)
+            )  # (nbatches, nseg, nvoxels, ncontrasts)
+            image = image.reshape(
+                image.shape[:2], *shape[-2:], image.shape[-1]
+            )  # (nbatches, nseg, nz, ny, ncontrasts)
         else:
-            image = image.reshape(-1, image.shape[-3], np.prod(image.shape[-2:])) # (nbatches, ncontrasts, nvoxels)
-            image =  image.swapaxes(1, -1) # (nbatches, nvoxels, ncontrasts)
-            image = image.reshape(image.shape[0], *shape[-2:], image.shape[-1]) # (nbatches, nz, ny, ncontrasts)         
+            image = image.reshape(
+                -1, image.shape[-3], np.prod(image.shape[-2:])
+            )  # (nbatches, ncontrasts, nvoxels)
+            image = image.swapaxes(1, -1)  # (nbatches, nvoxels, ncontrasts)
+            image = image.reshape(
+                image.shape[0], *shape[-2:], image.shape[-1]
+            )  # (nbatches, nz, ny, ncontrasts)
     else:
         if haszmap:
-            image = image.reshape(image.shape[0], -1, image.shape[-3:]) # (nseg, nbatches, (ncontrasts), nz, ny)
-            image =  image.swapaxes(0, 1) # (nbatches, nseg, (ncontrasts), nz, ny)
-        
+            image = image.reshape(
+                image.shape[0], -1, image.shape[-3:]
+            )  # (nseg, nbatches, (ncontrasts), nz, ny)
+            image = image.swapaxes(0, 1)  # (nbatches, nseg, (ncontrasts), nz, ny)
+
     # FFT
     kspace = _subroutines.fft(image, axes=range(-2, 0), norm=norm, centered=False)
 
@@ -88,21 +100,29 @@ def _do_gram(image, gram_matrix, norm):
         kspace = kspace @ gram_matrix.st_kernel
     else:
         kspace = kspace * gram_matrix.st_kernel
-        
+
     # IFFT
     image = _subroutines.ifft(kspace, axes=range(-2, 0), norm=norm, centered=False)
-    
+
     # reshape for output
-    if islowrank:  
+    if islowrank:
         if haszmap:
-            image = image.reshape(image.shape[:2], -1, image.shape[-1]) # (nbatches, nseg, nvoxels, ncontrasts)
-            image =  _subroutines.transpose(image, (1, 0, 3, 2)) # (nseg, nbatches, ncontrasts, nvoxels)
+            image = image.reshape(
+                image.shape[:2], -1, image.shape[-1]
+            )  # (nbatches, nseg, nvoxels, ncontrasts)
+            image = _subroutines.transpose(
+                image, (1, 0, 3, 2)
+            )  # (nseg, nbatches, ncontrasts, nvoxels)
         else:
-            image = image.reshape(image.shape[0], -1, image.shape[-1]) # (nbatches, nvoxels, ncontrasts)
-            image =  _subroutines.transpose(image, (0, 2, 1)) # (nbatches, nvoxels, nvoxels)
+            image = image.reshape(
+                image.shape[0], -1, image.shape[-1]
+            )  # (nbatches, nvoxels, ncontrasts)
+            image = _subroutines.transpose(
+                image, (0, 2, 1)
+            )  # (nbatches, nvoxels, nvoxels)
     else:
         if haszmap:
-            image =  image.swapaxes(0, 1) # (nseg, nbatches, (ncontrasts), nz, ny)
+            image = image.swapaxes(0, 1)  # (nseg, nbatches, (ncontrasts), nz, ny)
 
     # keep original shape
     image = image.reshape(*shape)

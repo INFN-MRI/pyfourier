@@ -8,6 +8,7 @@ from . import _gram
 
 if _subroutines.pytorch_enabled:
     import torch
+
     USE_TORCH = True
 else:
     USE_TORCH = False

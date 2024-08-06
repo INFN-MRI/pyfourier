@@ -9,6 +9,7 @@ from . import _plan
 
 if _subroutines.pytorch_enabled:
     import torch
+
     USE_TORCH = True
 else:
     USE_TORCH = False
@@ -120,7 +121,7 @@ def sparse_ifftn(
             zmap = _subroutines.to_backend(torch, zmap)
         if T is not None:
             T = _subroutines.to_backend(torch, T)
-            
+
     # detect backend and device
     backend = _subroutines.get_backend(kspace)
     idevice = _subroutines.get_device(kspace)
@@ -182,11 +183,11 @@ def sparse_ifftn(
     # return
     image = _subroutines.astype(image, dtype)
     image = _subroutines.to_device(image, idevice)
-    
+
     # original backend
     if USE_TORCH:
         image = _subroutines.to_backend(ibackend, image)
-        
+
     return image
 
 

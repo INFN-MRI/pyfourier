@@ -1,6 +1,5 @@
 """Estimation of the density compensation via iterative NUFFT."""
 
-
 __all__ = ["pipe_menon_dcf"]
 
 from .. import _subroutines

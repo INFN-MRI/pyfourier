@@ -10,9 +10,10 @@ from .. import _utils
 # detect GPU
 _, gpu_backend = _utils.detect_gpu_backend()
 
+
 class Interpolator:  # noqa
     def __init__(self, coord, shape, width, beta):
-        
+
         # expand singleton dimensions
         ishape = list(coord.shape[:-1])
         ndim = coord.shape[-1]
@@ -35,12 +36,12 @@ class Interpolator:  # noqa
             width = ndim * [width]
         if np.isscalar(beta):
             beta = ndim * [beta]
-            
+
         # revert axis (z, y, x) -> (x, y, z)
         shape = shape[::-1]
         width = width[::-1]
         beta = beta[::-1]
-        
+
         # compute kernel scaling
         scale = _get_kernel_scaling(beta, width)
 
@@ -79,7 +80,7 @@ class Interpolator:  # noqa
         index = index[::-1]
         value = value[::-1]
         shape = shape[::-1]
-        
+
         # transform to tuples
         self.index = tuple(index)
         self.value = tuple(value)
@@ -88,17 +89,17 @@ class Interpolator:  # noqa
         self.scale = scale
         self.ndim = ndim
         self.device = None
-        
+
     def to(self, device):  # noqa
         if self.device is None or device != self.device:
-            
+
             # get device tag
             device_tag = _utils.get_device_tag(device)
             if device_tag == "cpu":
                 backend = nb
             else:
                 backend = gpu_backend
-                
+
             self.index = list(self.index)
             self.value = list(self.value)
 

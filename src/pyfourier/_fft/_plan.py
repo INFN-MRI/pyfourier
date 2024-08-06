@@ -6,13 +6,21 @@ from .. import _subroutines
 
 if _subroutines.pytorch_enabled:
     import torch
+
     USE_TORCH = True
 else:
     USE_TORCH = False
 
 
 def plan_fft(
-    mask, shape, zmap=None, L=6, nbins=(40, 40), dt=None, T=None, L_batch_size=None,
+    mask,
+    shape,
+    zmap=None,
+    L=6,
+    nbins=(40, 40),
+    dt=None,
+    T=None,
+    L_batch_size=None,
 ):
     """
     Precompute sparse FFT object.
@@ -58,7 +66,7 @@ def plan_fft(
         * zmap_batch_size (``int``): zmap processing batch size.
         * device (``str``): computational device.
 
-    """        
+    """
     # switch to torch if possible
     if USE_TORCH:
         mask = _subroutines.to_backend(torch, mask)
@@ -66,31 +74,35 @@ def plan_fft(
             zmap = _subroutines.to_backend(torch, zmap)
         if T is not None:
             T = _subroutines.to_backend(torch, T)
-    
+
     # get backend
     backend = _subroutines.get_backend(mask)
     device = _subroutines.get_device(mask)
-    
+
     # compute zmap approximation
     if zmap is not None:
         # get time
         if T is None:
             assert dt is not None, "Please provide raster time dt if T is not known"
             T = dt * _subroutines.arange(shape[-1], backend.float32, device, backend)
-                   
+
         # compute zmap spatial and temporal basis
         Tshape = T.shape
-        zmap_t_kernel, zmap_s_kernel = _subroutines.mri_exp_approx(zmap, T.flatten(), L, nbins)
+        zmap_t_kernel, zmap_s_kernel = _subroutines.mri_exp_approx(
+            zmap, T.flatten(), L, nbins
+        )
         zmap_t_kernel = zmap_t_kernel.reshape(*Tshape)
-               
+
         # defaut z batch size
         if L_batch_size is None:
             L_batch_size = L
 
     else:
         zmap_t_kernel, zmap_s_kernel = None, None
-    
+
     # plan
-    plan = _subroutines.FFTPlan(False, mask, shape, zmap_t_kernel, zmap_s_kernel, L_batch_size)
-     
+    plan = _subroutines.FFTPlan(
+        False, mask, shape, zmap_t_kernel, zmap_s_kernel, L_batch_size
+    )
+
     return plan

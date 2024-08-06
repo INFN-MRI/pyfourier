@@ -105,10 +105,10 @@ def _do_fft_fwd(image, ndim, mask, basis, norm):
 
     # FFT
     kspace = _subroutines.fft(image, axes=range(-ndim, 0), norm=norm)
-    
+
     # Backproject on contrast space
     kspace = _basis_adj(kspace, basis, ndim)
-    
+
     # Sample
     if mask.indexes is not None:
         kspace = kspace * mask.indexes
@@ -117,36 +117,35 @@ def _do_fft_fwd(image, ndim, mask, basis, norm):
 
 
 def _do_fft_adj(kspace, ndim, mask, basis, norm):
-    
+
     # Sample
     if mask.indexes is not None:
         kspace = kspace * mask.indexes
-        
+
     # Project on subspace
     kspace = _basis_fwd(kspace, basis, ndim)
 
     # IFFT
     image = _subroutines.ifft(kspace, axes=range(-ndim, 0), norm=norm)
-    
+
     return image
 
 
 def _basis_fwd(kspace, basis, ndim):
     if basis is not None:
-        b = basis # (T, K)
-        kspace = kspace[..., None].swapaxes(-ndim-1, -1)
+        b = basis  # (T, K)
+        kspace = kspace[..., None].swapaxes(-ndim - 1, -1)
         kspace = kspace @ b
-        kspace = kspace.swapaxes(-ndim-1, -1)[..., 0]
-        
+        kspace = kspace.swapaxes(-ndim - 1, -1)[..., 0]
+
     return kspace
 
 
 def _basis_adj(kspace, basis, ndim):
     if basis is not None:
         b = basis.conj().T  # (K, T)
-        kspace = kspace[..., None].swapaxes(-ndim-1, -1)
+        kspace = kspace[..., None].swapaxes(-ndim - 1, -1)
         kspace = kspace @ b
-        kspace = kspace.swapaxes(-ndim-1, -1)[..., 0]
-        
-    return kspace
+        kspace = kspace.swapaxes(-ndim - 1, -1)[..., 0]
 
+    return kspace

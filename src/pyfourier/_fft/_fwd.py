@@ -9,6 +9,7 @@ from . import _plan
 
 if _subroutines.pytorch_enabled:
     import torch
+
     USE_TORCH = True
 else:
     USE_TORCH = False
@@ -101,7 +102,7 @@ def fftn(
             zmap = _subroutines.to_backend(torch, zmap)
         if T is not None:
             T = _subroutines.to_backend(torch, T)
-            
+
     # detect backend and device
     backend = _subroutines.get_backend(image)
     idevice = _subroutines.get_device(image)
@@ -115,7 +116,7 @@ def fftn(
                 device = -1
             else:
                 device = int(device.split(":")[-1])
-                
+
     # infer shape
     shape = image.shape[-ndim:]
 
@@ -154,11 +155,11 @@ def fftn(
     # return
     kspace = _subroutines.astype(kspace, dtype)
     kspace = _subroutines.to_device(kspace, idevice)
-    
+
     # original backend
     if USE_TORCH:
         kspace = _subroutines.to_backend(ibackend, kspace)
-        
+
     return kspace
 
 

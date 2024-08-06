@@ -82,9 +82,7 @@ def fft(input, axes=None, norm="ortho", centered=True):
     elif backend.__name__ == "numpy" and _utils.mklfft_enabled():
         if centered:
             output = backend.fft.fftshift(
-                mkl_fft.fftn(
-                    backend.fft.ifftshift(input, axes=ax), axes=ax, norm=norm
-                ),
+                mkl_fft.fftn(backend.fft.ifftshift(input, axes=ax), axes=ax, norm=norm),
                 axes=ax,
             )
         else:

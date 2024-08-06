@@ -5,15 +5,15 @@ from importlib.metadata import version
 
 __version__ = version("pyfourier")
 
-from . import demo # noqa
+from . import demo  # noqa
 from ._fft import fftn, ifftn, plan_fft  # noqa
 from ._sparsefft import sparse_fftn, sparse_ifftn, plan_spfft  # noqa
 from ._nufft import nufft, nufft_adj, plan_nufft  # noqa
 from ._gram import gram, plan_gram  # noqa
 from ._sparsegram import sparse_gram, plan_spgram  # noqa
-from ._subroutines import fft, ifft # noqa
-from ._dcomp import pipemenon, voronoi # noqa
-from ._rss import rss # noqa
+from ._subroutines import fft, ifft  # noqa
+from ._dcomp import pipemenon, voronoi  # noqa
+from ._rss import rss  # noqa
 
 __all__ = []
 

@@ -2,6 +2,7 @@
 
 __all__ = ["rss"]
 
+
 def rss(input, axis=None, keepdim=False):
     """
     Perform root sum-of-squares combination of a signal.
@@ -24,7 +25,7 @@ def rss(input, axis=None, keepdim=False):
 
     Examples
     --------
-    >>> import numpy as np 
+    >>> import numpy as np
     >>> import pyfourier as pyft
 
     Generate an example signal:

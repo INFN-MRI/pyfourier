@@ -19,7 +19,7 @@ from ._resize import *  # noqa
 from ._utils import *  # noqa
 from ._traj import *  # noqa
 
-__all__ = ["_resize"] # noqa
+__all__ = ["_resize"]  # noqa
 __all__.extend(_apod.__all__)
 __all__.extend(_bmatvec.__all__)
 __all__.extend(_b0.__all__)

@@ -11,9 +11,11 @@ from .. import _subroutines
 
 if _subroutines.pytorch_enabled:
     import torch
+
     USE_TORCH = True
 else:
     USE_TORCH = False
+
 
 def plan_nufft(
     coord,
@@ -104,11 +106,11 @@ def plan_nufft(
             zmap = _subroutines.to_backend(torch, zmap)
         if T is not None:
             T = _subroutines.to_backend(torch, T)
-            
+
     # get backend
     backend = _subroutines.get_backend(coord)
     device = _subroutines.get_device(coord)
-            
+
     # get parameters
     ndim = coord.shape[-1]
 
@@ -159,17 +161,19 @@ def plan_nufft(
     beta = tuple(beta)
     os_shape = tuple(os_shape)
     shape = tuple(shape)
-    
+
     # compute zmap approximation
     if zmap is not None:
         # get time
         if T is None:
             assert dt is not None, "Please provide raster time dt if T is not known"
-            T = dt * _subroutines.arange(coord.shape[-2], backend.float32, device, backend)
-            
+            T = dt * _subroutines.arange(
+                coord.shape[-2], backend.float32, device, backend
+            )
+
         # compute zmap spatial and temporal basis
         zmap_t_kernel, zmap_s_kernel = _subroutines.mri_exp_approx(zmap, T, L, nbins)
-        
+
         # defaut z batch size
         if L_batch_size is None:
             L_batch_size = L
@@ -191,7 +195,7 @@ def plan_nufft(
         L_batch_size,
         None,
     )
-        
+
     return plan
 
 
