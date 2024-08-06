@@ -1,12 +1,41 @@
 [build-system]
-# AVOID CHANGING REQUIRES: IT WILL BE UPDATED BY PYSCAFFOLD!
-requires = ["setuptools>=46.1.0", "setuptools_scm[toml]>=5"]
+requires = ["setuptools", "setuptools-scm"]
 build-backend = "setuptools.build_meta"
 
-[tool.setuptools_scm]
-# For smarter version schemes and other configuration options,
-# check out https://github.com/pypa/setuptools_scm
-version_scheme = "no-guess-dev"
+[project]
+name = "pyfourier"
+version = "0.0.1.alpha"
+authors = [{name = "Matteo Cencini", email = "matteo.cencini@gmail.com"}]
+description = "Sparse and Non-Uniform Fast Fourier Transform routines."
+readme = "README.md"
+requires-python = ">=3.9"
+keywords = ["MRI", "NUFFT", "FFT", "Signal Processing"]
+license = {text = "MIT"}
+classifiers = ["Programming Language :: Python :: 3"]
+dependencies = [
+   "numpy",
+   "numba",
+]
 
-[tool.coverage.run]
-omit = ["tutorials/*", "docs/*", "src/pyfourier/_*/*"]
+[project.optional-dependencies]
+torch = ["torch"]
+cuda = ["cuda-python"]
+rocm = ["cupy-rocm-5-0"]
+dev = [
+    "autoflake",
+    "black",
+    "coverage", 
+    "matplotlib",
+    "pytest",
+    "pytest-cov", 
+    "ruff",
+    "sphinx==6.2.1",
+    "tox",
+]
+ide = ["spyder", "jupyter"]
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["pyfourier*"]
+exclude = ["pyfourier.tests*"]
+namespaces = false

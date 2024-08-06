@@ -1,0 +1,11 @@
+name: torch-cpu
+channels:
+  - conda-forge
+dependencies:
+  - python=3.9
+  - pip=23.0.1
+  - pip:
+    - --extra-index-url https://download.pytorch.org/whl/cpu
+    - numpy==1.22.4
+    - numba==0.57.0
+    - torch==2.0.1
